@@ -1,0 +1,47 @@
+{
+  "id": "giga-r1-m7",
+  "name": "Arduino Giga R1 WiFi (STM32H747, M7 core)",
+  "family": "stm32",
+  "backend": "arduino-cli",
+  "tested_on_hardware": true,
+  "note": "Arduino mbed core arduino:mbed_giga, built with arduino-cli (the core the IDE uses; PlatformIO's framework-arduino-mbed is a different build of it). M7 sketch at 0x08040000 behind the Arduino bootloader, flashed by USB DFU. Pin the core to the version the sketch was proven on.",
+  "platformio": {
+    "platform": "platformio/ststm32@20.0.0",
+    "board": "giga_r1_m7",
+    "framework": "arduino"
+  },
+  "arduino": {
+    "fqbn": "arduino:mbed_giga:giga:split=100_0,target_core=cm7,security=none",
+    "platform": "arduino:mbed_giga@4.6.0"
+  },
+  "flash": {
+    "method": "dfu-util",
+    "dfu_id": "0x2341:0x0366",
+    "alt": 0,
+    "address": "0x08040000",
+    "bootloader_hint": "Double-tap the board's RESET button. The green LED starts slowly pulsing. Then press any key here.",
+    "usb_ids": [
+      "2341:0266",
+      "2341:0366",
+      "2341:0466"
+    ]
+  },
+  "fields": [
+    {
+      "key": "flash_size",
+      "label": "Flash size",
+      "side": "build",
+      "from": "board:upload.maximum_size"
+    },
+    {
+      "key": "upload_protocol",
+      "label": "Upload protocol",
+      "side": "flash",
+      "from": [
+        "ini:upload_protocol",
+        "board:upload.protocol"
+      ]
+    }
+  ],
+  "serial_baud": 9600
+}

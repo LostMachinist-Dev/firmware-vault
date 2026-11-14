@@ -1,0 +1,45 @@
+{
+  "id": "arduino-nano",
+  "name": "Arduino Nano (ATmega328P, new bootloader)",
+  "family": "avr",
+  "backend": "platformio",
+  "tested_on_hardware": false,
+  "platformio": {
+    "platform": "platformio/atmelavr@5.3.0",
+    "board": "nanoatmega328new",
+    "framework": "arduino"
+  },
+  "arduino": {
+    "fqbn": "arduino:avr:nano:cpu=atmega328",
+    "platform": "arduino:avr@1.8.8"
+  },
+  "flash": {
+    "method": "avrdude",
+    "mcu": "atmega328p",
+    "protocol": "arduino",
+    "baud": 115200,
+    "usb_ids": [
+      "1a86:7523",
+      "0403:6001"
+    ]
+  },
+  "fields": [
+    {
+      "key": "fuses",
+      "label": "Fuse settings",
+      "side": "flash",
+      "from": {
+        "lfuse": "board:bootloader.lfuse",
+        "hfuse": "board:bootloader.hfuse",
+        "efuse": "board:bootloader.efuse"
+      }
+    },
+    {
+      "key": "bootloader",
+      "label": "Bootloader",
+      "side": "flash",
+      "from": "board:bootloader.file"
+    }
+  ],
+  "serial_baud": 115200
+}

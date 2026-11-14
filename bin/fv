@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Firmware Vault command line. `fv --help` for commands, `fv serve` for the page, `fv mcp` for Claude Code.
+APP="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+PYTHONPATH="$APP" exec "$APP/.venv/bin/python" -m fvault.cli "$@"

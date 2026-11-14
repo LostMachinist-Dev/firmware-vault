@@ -1,0 +1,21 @@
+{
+  "id": "nucleo-f401re",
+  "name": "ST Nucleo-F401RE (STM32F401, on-board ST-Link)",
+  "family": "stm32",
+  "backend": "platformio",
+  "tested_on_hardware": false,
+  "note": "Written from the datasheet. No STM32 board on the bench yet.",
+  "platformio": {"platform": "platformio/ststm32@20.0.0", "board": "nucleo_f401re", "framework": "arduino"},
+  "flash": {
+    "method": "openocd",
+    "interface": "interface/stlink.cfg",
+    "target": "target/stm32f4x.cfg",
+    "address": "0x08000000",
+    "usb_ids": ["0483:374b", "0483:374e", "0483:3752"]
+  },
+  "fields": [
+    {"key": "upload_protocol", "label": "Upload protocol", "side": "flash", "from": ["ini:upload_protocol", "board:upload.protocol"]},
+    {"key": "flash_size", "label": "Flash size", "side": "build", "from": "board:upload.maximum_size"}
+  ],
+  "serial_baud": 115200
+}

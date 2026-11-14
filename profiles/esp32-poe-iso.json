@@ -1,0 +1,64 @@
+{
+  "id": "esp32-poe-iso",
+  "name": "Olimex ESP32-POE-ISO",
+  "family": "esp32",
+  "backend": "platformio",
+  "tested_on_hardware": false,
+  "platformio": {
+    "platform": "platformio/espressif32@8.0.0",
+    "board": "esp32-poe-iso",
+    "framework": "arduino"
+  },
+  "arduino": {
+    "fqbn": "esp32:esp32:esp32-poe-iso",
+    "platform": "esp32:esp32@3.3.12",
+    "index_url": "https://espressif.github.io/arduino-esp32/package_esp32_index.json"
+  },
+  "flash": {
+    "method": "esptool",
+    "chip": "esp32",
+    "baud": 460800,
+    "bootloader_offset": "0x1000",
+    "usb_ids": [
+      "1a86:7523",
+      "1a86:55d4"
+    ]
+  },
+  "fields": [
+    {
+      "key": "partition_scheme",
+      "label": "Partition scheme",
+      "side": "build",
+      "from": "ini:board_build.partitions",
+      "default": "default.csv"
+    },
+    {
+      "key": "flash_mode",
+      "label": "Flash mode",
+      "side": "flash",
+      "from": [
+        "ini:board_build.flash_mode",
+        "board:build.flash_mode"
+      ]
+    },
+    {
+      "key": "flash_freq",
+      "label": "Flash frequency",
+      "side": "flash",
+      "from": [
+        "ini:board_build.f_flash",
+        "board:build.f_flash"
+      ]
+    },
+    {
+      "key": "flash_size",
+      "label": "Flash size",
+      "side": "flash",
+      "from": [
+        "ini:board_upload.flash_size",
+        "board:upload.flash_size"
+      ]
+    }
+  ],
+  "serial_baud": 115200
+}

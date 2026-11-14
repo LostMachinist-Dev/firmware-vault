@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Firmware Vault</title>
+<style>
+:root{
+  --bg:#04060c; --cyan:#38f2ff; --violet:#9b6bff; --green:#3dffa6; --amber:#ffc24a; --red:#ff4d6d;
+  --ink:#d8f6ff; --dim:#6f8fa3; --panel:rgba(10,18,34,.74); --line:rgba(56,242,255,.22);
+  --mono:ui-monospace,"SF Mono","Cascadia Code",Menlo,Consolas,monospace;
+  --sans:"Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
+}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%}
+body{
+  background:
+    radial-gradient(900px 520px at 85% -10%,rgba(155,107,255,.22),transparent 60%),
+    radial-gradient(800px 500px at -10% 105%,rgba(56,242,255,.16),transparent 60%),
+    var(--bg);
+  color:var(--ink);font-family:var(--sans);font-size:14px;overflow-x:hidden;
+}
+body::before{ /* grid */
+  content:"";position:fixed;inset:0;pointer-events:none;
+  background-image:linear-gradient(rgba(56,242,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(56,242,255,.05) 1px,transparent 1px);
+  background-size:44px 44px;mask-image:radial-gradient(ellipse at center,#000 30%,transparent 80%);
+}
+body::after{ /* scanlines */
+  content:"";position:fixed;inset:0;pointer-events:none;opacity:.35;
+  background:repeating-linear-gradient(0deg,rgba(0,0,0,.35) 0 1px,transparent 1px 3px);
+}
+button{font:inherit;color:inherit;cursor:pointer}
+.app{position:relative;z-index:1;max-width:1320px;margin:0 auto;padding:20px;display:flex;flex-direction:column;gap:16px;min-height:100vh}
+
+/* header */
+header{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:14px}
+.sigil{width:38px;height:38px;position:relative;filter:drop-shadow(0 0 8px var(--cyan))}
+.sigil svg{width:100%;height:100%;animation:spin 18s linear infinite}
+h1{font-family:var(--mono);font-size:18px;letter-spacing:.32em;font-weight:600;text-shadow:0 0 14px rgba(56,242,255,.6)}
+h1 small{display:block;font-size:10px;letter-spacing:.3em;color:var(--dim);font-weight:400;margin-top:3px}
+.bench{font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--dim);display:flex;align-items:center;gap:10px;padding:8px 14px;border:1px solid var(--line);border-radius:3px;background:var(--panel)}
+.bench b{color:var(--cyan);font-weight:600}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green);animation:pulse 2s ease-in-out infinite}
+
+/* panels */
+main{display:grid;grid-template-columns:230px minmax(300px,420px) 1fr;gap:16px;flex:1;align-items:start}
+.panel{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:18px;backdrop-filter:blur(8px);box-shadow:0 0 0 1px rgba(155,107,255,.06) inset,0 10px 40px rgba(0,0,0,.45)}
+.panel::before,.panel::after{content:"";position:absolute;width:14px;height:14px;border:2px solid var(--cyan);filter:drop-shadow(0 0 5px var(--cyan));pointer-events:none}
+.panel::before{top:-1px;left:-1px;border-right:0;border-bottom:0}
+.panel::after{bottom:-1px;right:-1px;border-left:0;border-top:0}
+.label{font-family:var(--mono);font-size:10px;letter-spacing:.28em;color:var(--dim);text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.label::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line),transparent)}
+
+/* projects */
+.proj{display:block;width:100%;text-align:left;padding:11px 12px;margin-bottom:8px;background:transparent;border:1px solid transparent;border-left:2px solid var(--line);transition:.2s}
+.proj:hover{background:rgba(56,242,255,.06)}
+.proj.sel{background:linear-gradient(90deg,rgba(56,242,255,.16),transparent);border-left-color:var(--cyan);box-shadow:-6px 0 18px -8px var(--cyan)}
+.proj b{display:block;font-weight:600;letter-spacing:.04em}
+.proj span{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.1em}
+.newp{margin-top:14px;width:100%;padding:10px;font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:var(--violet);background:transparent;border:1px dashed rgba(155,107,255,.5)}
+
+/* versions */
+.pinned{display:flex;align-items:center;gap:10px;width:100%;padding:11px 14px;margin-bottom:14px;text-align:left;background:linear-gradient(90deg,rgba(61,255,166,.16),rgba(61,255,166,.03));border:1px solid rgba(61,255,166,.55);border-radius:3px;font-family:var(--mono);font-size:11px;letter-spacing:.1em;animation:glowG 3s ease-in-out infinite}
+.pinned b{color:var(--green)}
+.cell{position:relative;display:block;width:100%;text-align:left;padding:14px 16px 14px 20px;margin-bottom:10px;background:rgba(6,12,24,.7);border:1px solid var(--line);border-radius:3px;overflow:hidden;transition:.2s}
+.cell::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--c);box-shadow:0 0 14px var(--c)}
+.cell:hover{border-color:var(--c);transform:translateX(3px)}
+.cell.sel{border-color:var(--c);background:linear-gradient(90deg,color-mix(in srgb,var(--c) 14%,transparent),rgba(6,12,24,.7));box-shadow:0 0 22px -8px var(--c)}
+.cell.good{animation:glowG 3s ease-in-out infinite}
+.row1{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.vname{font-family:var(--mono);font-size:17px;font-weight:600;letter-spacing:.08em}
+.badge{font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;padding:3px 8px;border:1px solid var(--c);color:var(--c);border-radius:2px;text-shadow:0 0 8px var(--c)}
+.meta{margin-top:8px;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;color:var(--dim);display:flex;gap:14px;flex-wrap:wrap}
+.meta .onb{color:var(--cyan)}
+
+/* detail */
+.dhead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:16px}
+.dhead h2{font-family:var(--mono);font-size:30px;letter-spacing:.1em;text-shadow:0 0 18px var(--c)}
+.dhead .reason{color:var(--dim);font-size:12.5px;margin-top:4px;max-width:44ch}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.btn{font-family:var(--mono);font-size:11px;letter-spacing:.2em;padding:12px 18px;background:rgba(56,242,255,.05);border:1px solid var(--cyan);color:var(--cyan);border-radius:2px;transition:.2s;text-transform:uppercase}
+.btn:hover{background:rgba(56,242,255,.16);box-shadow:0 0 22px -4px var(--cyan)}
+.btn.primary{background:linear-gradient(135deg,rgba(56,242,255,.3),rgba(155,107,255,.3));color:#fff;border-color:var(--cyan);box-shadow:0 0 20px -6px var(--cyan)}
+.btn.violet{border-color:var(--violet);color:var(--violet);background:rgba(155,107,255,.06)}
+.btn.violet:hover{background:rgba(155,107,255,.18);box-shadow:0 0 22px -4px var(--violet)}
+.btn.live{border-color:var(--red);color:var(--red);background:rgba(255,77,109,.1);animation:pulseB 1.4s ease-in-out infinite}
+.btn.danger{border-color:var(--red);color:var(--red);background:rgba(255,77,109,.08)}
+.btn.sm{padding:6px 10px;font-size:10px}
+.btn:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}
+
+.flash{margin-bottom:16px;padding:14px;border:1px solid var(--line);background:rgba(0,0,0,.4);font-family:var(--mono);font-size:11.5px;border-radius:3px}
+.flash[hidden]{display:none}
+.bar{height:6px;background:rgba(56,242,255,.12);margin-bottom:10px;overflow:hidden;border-radius:2px}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--violet),var(--cyan));box-shadow:0 0 14px var(--cyan);transition:width .35s}
+.flash p{color:var(--dim);line-height:1.7}
+.flash p.ok{color:var(--green)}
+.warn{margin-bottom:16px;padding:14px;border:1px solid var(--red);background:rgba(255,77,109,.1);border-radius:3px;font-size:13px;line-height:1.5}
+.warn .actions{margin:12px 0 0}
+
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:16px;flex-wrap:wrap}
+.tab{font-family:var(--mono);font-size:10.5px;letter-spacing:.2em;padding:10px 14px;background:none;border:0;border-bottom:2px solid transparent;color:var(--dim);text-transform:uppercase}
+.tab.on{color:var(--cyan);border-bottom-color:var(--cyan);text-shadow:0 0 10px var(--cyan)}
+.tab em{font-style:normal;color:var(--amber);margin-left:6px}
+
+.sum li{list-style:none;padding:9px 0 9px 20px;position:relative;line-height:1.5;border-bottom:1px solid rgba(56,242,255,.08)}
+.sum li::before{content:"◆";position:absolute;left:0;color:var(--violet);font-size:9px;top:13px}
+.stamp{margin-top:20px}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{font-family:var(--mono);font-size:10px;letter-spacing:.14em;padding:7px 11px;background:transparent;border:1px solid var(--c);color:var(--c);border-radius:2px}
+.chip:hover,.chip.on{background:color-mix(in srgb,var(--c) 22%,transparent);box-shadow:0 0 14px -4px var(--c)}
+.hint{font-size:11.5px;color:var(--dim);margin-top:8px;line-height:1.5}
+
+.issue{display:flex;gap:12px;align-items:flex-start;padding:12px;margin-bottom:8px;border:1px solid var(--line);border-left:3px solid var(--amber);background:rgba(0,0,0,.28);border-radius:2px}
+.issue.done{border-left-color:var(--green);opacity:.6}
+.issue .t{font-family:var(--mono);font-size:10.5px;color:var(--dim);white-space:nowrap;padding-top:2px}
+.issue .x{flex:1;line-height:1.45}
+.issue .by{display:block;font-family:var(--mono);font-size:10px;color:var(--green);margin-top:4px;letter-spacing:.08em}
+.empty{color:var(--dim);font-family:var(--mono);font-size:12px;padding:16px 0;letter-spacing:.08em}
+
+.kv{display:grid;grid-template-columns:150px 1fr;gap:0;font-size:13px}
+.kv>div{padding:9px 0;border-bottom:1px solid rgba(56,242,255,.08)}
+.kv>div:nth-child(odd){font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;color:var(--dim);text-transform:uppercase;padding-top:11px}
+.kv code,.diff{font-family:var(--mono)}
+.kv .pin{display:inline-block;margin:2px 6px 2px 0;padding:2px 8px;border:1px solid rgba(155,107,255,.5);color:#cdb8ff;font-family:var(--mono);font-size:11.5px;border-radius:2px}
+.diff{font-size:12px;line-height:1.75;background:rgba(0,0,0,.38);padding:12px 14px;border:1px solid var(--line);border-radius:3px;overflow-x:auto}
+.diff div{white-space:pre}
+.diff .a{color:var(--green)} .diff .r{color:var(--red)} .diff .n{color:var(--dim)}
+
+#noteForm{margin-top:16px;display:flex;gap:10px;align-items:center;padding:12px;border:1px solid var(--red);background:rgba(255,77,109,.06);border-radius:3px}
+#noteForm[hidden]{display:none}
+#noteForm .rec{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--red);display:flex;align-items:center;gap:8px;white-space:nowrap}
+#noteForm .rec i{width:9px;height:9px;border-radius:50%;background:var(--red);box-shadow:0 0 12px var(--red);animation:pulse 1s infinite}
+#noteForm input{flex:1;min-width:0;background:rgba(0,0,0,.5);border:1px solid var(--line);color:var(--ink);padding:10px 12px;font:inherit;border-radius:2px;outline:none}
+#noteForm input:focus{border-color:var(--cyan);box-shadow:0 0 14px -4px var(--cyan)}
+
+footer{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--dim);text-align:center;padding:6px}
+
+@keyframes pulse{50%{opacity:.35}}
+@keyframes pulseB{50%{box-shadow:0 0 22px -2px var(--red)}}
+@keyframes glowG{50%{box-shadow:0 0 22px -6px var(--green)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.cell,.issue,.sum li{animation:rise .35s both}
+@media (max-width:980px){main{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">
+      <div class="sigil">
+        <svg viewBox="0 0 40 40" fill="none" stroke="#38f2ff" stroke-width="1.5">
+          <polygon points="20,2 36,11 36,29 20,38 4,29 4,11"/>
+          <polygon points="20,10 29,15 29,25 20,30 11,25 11,15" stroke="#9b6bff"/>
+          <circle cx="20" cy="20" r="3" fill="#38f2ff"/>
+        </svg>
+      </div>
+      <h1>FIRMWARE VAULT<small>KNOWN BUILDS · SEALED · FLASHABLE</small></h1>
+    </div>
+    <div class="bench" id="bench"></div>
+  </header>
+
+  <main>
+    <section class="panel"><div class="label">Projects</div><div id="projects"></div><button class="newp" data-a="newp">+ NEW PROJECT</button></section>
+    <section class="panel"><div class="label">Versions · newest first</div><div id="versions"></div></section>
+    <section class="panel" id="detailPanel">
+      <div id="detail"></div>
+      <div class="flash" id="flashBox" hidden></div>
+      <form id="noteForm" hidden autocomplete="off">
+        <span class="rec"><i></i>LISTENING</span>
+        <input id="noteInput" placeholder="Say or type what's wrong, press Enter. Each note becomes its own issue.">
+        <button class="btn sm" type="submit">LOG</button>
+      </form>
+    </section>
+  </main>
+  <footer>SAMPLE DATA · INTERFACE MOCKUP</footer>
+</div>
+
+<script>
+const STATUS = {
+  draft:{label:'DRAFT',c:'#6f8fa3'}, testing:{label:'TESTING',c:'#38f2ff'},
+  good:{label:'KNOWN GOOD',c:'#3dffa6'}, caveats:{label:'GOOD · CAVEATS',c:'#ffc24a'},
+  bad:{label:'DO NOT DEPLOY',c:'#ff4d6d'}
+};
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const now = () => new Date().toLocaleTimeString([], {hour12:false});
+
+const P = [
+  { name:'Telemetry Node', board:'ESP32 · PlatformIO', pcb:'telemetry-node · rev C', onBoard:'v5', versions:[
+    { id:'v5', status:'testing', reason:'Fix pass for scaling and mirroring', date:'Nov 8', hash:'a41f9c…e2',
+      summary:['Added a ring buffer for samples so the graph no longer drops points.','Ported the axis scaling logic from a similar library for another chip.','Left out the heavy charting library, drew the graph directly.'],
+      libs:['AsyncWebServer 3.1.0','ArduinoJson 7.0.4'], core:'espressif32 6.9.0', compiler:'xtensa-gcc 12.2.0',
+      diff:[['n','src/graph.cpp'],['a','+ scale = (max - min) / height;'],['r','- scale = max / height;'],['a','+ mirrorX = false;'],['n','platformio.ini'],['a','+ ArduinoJson @ 7.0.4']],
+      issues:[{t:'17:52',text:'Graph scales incorrectly',state:'open'},{t:'17:53',text:'Data is mirrored',state:'open'}] },
+    { id:'v4', status:'bad', reason:'Reboots under load. Do not flash.', date:'Nov 6', hash:'77be02…19',
+      summary:['First try at the web dashboard.','Pulled in a WiFi helper library that conflicts with the web server.'],
+      libs:['AsyncWebServer 3.0.9','WiFiHelper 1.2.0'], core:'espressif32 6.9.0', compiler:'xtensa-gcc 12.2.0',
+      diff:[['n','src/main.cpp'],['a','+ #include <WiFiHelper.h>'],['a','+ helper.begin();']],
+      issues:[{t:'20:14',text:'Reboot loop after 30 seconds',state:'open'},{t:'20:16',text:'Heap runs out on page load',state:'open'}] },
+    { id:'v3', status:'good', reason:'Stable. Sensor reads clean, serial output verified.', date:'Nov 3', hash:'c9031d…5a',
+      summary:['Sensor reading and serial output only, no web UI yet.','Everything written from scratch, no extra libraries.'],
+      libs:['none'], core:'espressif32 6.8.1', compiler:'xtensa-gcc 12.2.0',
+      diff:[['n','src/main.cpp'],['a','+ readSensor();'],['a','+ Serial.println(value);']],
+      issues:[{t:'19:40',text:'Sensor reads zero at boot',state:'verified',by:'You'}] },
+    { id:'v2', status:'caveats', reason:'Works, but first reading is off.', date:'Nov 1', hash:'0ad5e7…b3',
+      summary:['First working sensor read.'], libs:['none'], core:'espressif32 6.8.1', compiler:'xtensa-gcc 12.2.0',
+      diff:[['n','src/main.cpp'],['a','+ pinMode(SENSOR, INPUT);']],
+      issues:[{t:'16:05',text:'First reading is off',state:'open'}] }
+  ]},
+  { name:'Gauge Panel', board:'Mega · PlatformIO', pcb:'gauge-panel · rev A', onBoard:'v2', versions:[
+    { id:'v2', status:'good', reason:'Needles settle correctly.', date:'Oct 28', hash:'3be8a1…f0',
+      summary:['Smoothed the needle motion.','Calibration table stored in EEPROM.'], libs:['Stepper 1.1.3'], core:'atmelavr 5.0.0', compiler:'avr-gcc 7.3.0',
+      diff:[['n','src/needle.cpp'],['a','+ smooth(target, 0.2);']], issues:[] },
+    { id:'v1', status:'draft', reason:'First pass.', date:'Oct 25', hash:'91c2d4…7e',
+      summary:['Basic needle driving.'], libs:['Stepper 1.1.3'], core:'atmelavr 5.0.0', compiler:'avr-gcc 7.3.0',
+      diff:[['a','+ new project']], issues:[] }
+  ]},
+  { name:'Motor Test', board:'STM32 · PlatformIO', pcb:'not linked', onBoard:null, versions:[
+    { id:'v1', status:'draft', reason:'Blink and PWM test on a Nucleo.', date:'Nov 7', hash:'e5a07b…c1',
+      summary:['Learning build: LED blink and a PWM sweep.'], libs:['STM32duino core 2.7.1'], core:'ststm32 19.0.0', compiler:'arm-none-eabi-gcc 10.3',
+      diff:[['a','+ new project']], issues:[] }
+  ]}
+];
+
+let pi = 0, vid = P[0].versions[0].id, tab = 'summary', listening = false, flashing = false, warnFor = null;
+const proj = () => P[pi];
+const ver = (id = vid) => proj().versions.find(v => v.id === id) || proj().versions[0];
+const openCount = v => v.issues.filter(i => i.state !== 'verified').length;
+
+function renderBench(){
+  const p = proj();
+  document.getElementById('bench').innerHTML = p.onBoard
+    ? `<span class="dot"></span>ON BOARD <b>${esc(p.name.toUpperCase())}</b> ← <b>${esc(p.onBoard)}</b> · ${esc(p.board)}`
+    : `<span class="dot" style="background:var(--dim);box-shadow:none;animation:none"></span>NOTHING FLASHED YET · ${esc(p.board)}`;
+}
+function renderProjects(){
+  document.getElementById('projects').innerHTML = P.map((p,i) =>
+    `<button class="proj ${i===pi?'sel':''}" data-a="proj" data-i="${i}"><b>${esc(p.name)}</b><span>${esc(p.board)}</span></button>`).join('');
+}
+function renderVersions(){
+  const p = proj(), good = p.versions.find(v => v.status === 'good');
+  let h = good ? `<button class="pinned" data-a="ver" data-id="${good.id}"><b>LATEST KNOWN GOOD · ${esc(good.id)}</b><span>Flash in one click</span></button>` : '';
+  h += p.versions.map(v => {
+    const s = STATUS[v.status], n = openCount(v);
+    return `<button class="cell ${v.id===vid?'sel':''} ${v.status==='good'?'good':''}" style="--c:${s.c}" data-a="ver" data-id="${v.id}">
+      <div class="row1"><span class="vname">${esc(v.id)}</span><span class="badge">${s.label}</span></div>
+      <div class="meta"><span>${esc(v.date)}</span><span>${n} OPEN ISSUE${n===1?'':'S'}</span>${p.onBoard===v.id?'<span class="onb">● ON BOARD</span>':''}</div></button>`;
+  }).join('');
+  document.getElementById('versions').innerHTML = h;
+}
+function renderDetail(){
+  const v = ver(), s = STATUS[v.status], p = proj(), n = openCount(v), prev = p.versions[p.versions.findIndex(x => x.id === v.id) + 1];
+  let body = '';
+  if (tab === 'summary') {
+    body = `<ul class="sum">${v.summary.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
+      <div class="stamp"><div class="label">Stamp this version · you only</div>
+      <div class="chips">${Object.entries(STATUS).map(([k,o]) => `<button class="chip ${v.status===k?'on':''}" style="--c:${o.c}" data-a="stamp" data-s="${k}">${o.label}</button>`).join('')}</div>
+      <p class="hint">Claude Code can move a version to testing. Known good, caveats and do not deploy are yours to set after trying it on real hardware.</p></div>`;
+  } else if (tab === 'issues') {
+    body = v.issues.length ? v.issues.map((i,k) => `<div class="issue ${i.state==='verified'?'done':''}"><span class="t">${esc(i.t)}</span>
+      <span class="x">${esc(i.text)}${i.state==='verified'?`<span class="by">VERIFIED BY ${esc(i.by||'You')}</span>`:''}</span>
+      ${i.state==='verified'?'':`<button class="btn sm violet" data-a="fix" data-k="${k}">Fixed</button>`}</div>`).join('')
+      : '<div class="empty">NO ISSUES LOGGED</div>';
+  } else if (tab === 'manifest') {
+    body = `<div class="kv"><div>Board profile</div><div>${esc(p.board)}</div><div>Core / platform</div><div>${esc(v.core)}</div><div>Compiler</div><div>${esc(v.compiler)}</div>
+      <div>Libraries</div><div>${v.libs.map(l => `<span class="pin">${esc(l)}</span>`).join('')}</div><div>Binary hash</div><div><code>${esc(v.hash)}</code></div><div>PCB link</div><div>${esc(p.pcb)}</div></div>`;
+  } else if (tab === 'diff') {
+    body = `<div class="label">${prev ? `Changes from ${esc(prev.id)}` : 'First version'}</div><div class="diff">${v.diff.map(([k,t]) => `<div class="${k}">${esc(t)}</div>`).join('')}</div>`;
+  }
+  const warn = warnFor === v.id ? `<div class="warn"><b style="color:var(--red)">DO NOT DEPLOY.</b> You marked this version as bad: ${esc(v.reason)}<div class="actions"><button class="btn danger" data-a="confirmflash">Flash anyway</button><button class="btn" data-a="cancelflash">Cancel</button></div></div>` : '';
+  document.getElementById('detail').innerHTML = `
+    <div class="dhead" style="--c:${s.c}"><div><div class="label" style="margin-bottom:6px">${esc(p.name)}</div><h2>${esc(v.id)}</h2><div class="reason">${esc(v.reason)}</div></div><span class="badge" style="--c:${s.c}">${s.label}</span></div>
+    <div class="actions">
+      <button class="btn primary" data-a="flash" ${flashing?'disabled':''}>Flash to board</button>
+      <button class="btn ${listening?'live':'violet'}" data-a="dbg">${listening?'Stop debug notes':'Start debug notes'}</button>
+    </div>${warn}
+    <div class="tabs">${[['summary','Summary'],['issues','Issues'],['manifest','Manifest'],['diff','Diff']].map(([k,l]) =>
+      `<button class="tab ${tab===k?'on':''}" data-a="tab" data-t="${k}">${l}${k==='issues'&&n?`<em>${n}</em>`:''}</button>`).join('')}</div>${body}`;
+}
+const renderAll = () => { renderBench(); renderProjects(); renderVersions(); renderDetail(); };
+
+/* flashing */
+const flashBox = document.getElementById('flashBox');
+function runFlash(){
+  const p = proj(), v = ver(); flashing = true; warnFor = null; renderDetail();
+  const steps = ['Opening programmer link','Erasing flash','Writing '+v.id+' binary','Verifying hash '+v.hash,'Boot check'];
+  flashBox.hidden = false; flashBox.innerHTML = '<div class="bar"><i></i></div><div id="fl"></div>';
+  const fl = flashBox.querySelector('#fl'), bar = flashBox.querySelector('i');
+  steps.forEach((t,k) => setTimeout(() => {
+    fl.insertAdjacentHTML('beforeend', `<p>› ${esc(t)}…</p>`); bar.style.width = ((k+1)/steps.length*100) + '%';
+    if (k === steps.length - 1) setTimeout(() => {
+      fl.insertAdjacentHTML('beforeend', `<p class="ok">✓ ${esc(v.id)} is now on the board</p>`);
+      p.onBoard = v.id; flashing = false; renderAll();
+      setTimeout(() => { if (!flashing) flashBox.hidden = true; }, 3200);
+    }, 500);
+  }, 600 * (k + 1)));
+}
+
+const actions = {
+  proj: d => { pi = +d.i; vid = proj().versions[0].id; tab = 'summary'; warnFor = null; flashBox.hidden = true; renderAll(); },
+  ver: d => { vid = d.id; warnFor = null; renderAll(); },
+  tab: d => { tab = d.t; renderDetail(); },
+  flash: () => { if (flashing) return; if (ver().status === 'bad') { warnFor = ver().id; renderDetail(); } else runFlash(); },
+  confirmflash: () => runFlash(),
+  cancelflash: () => { warnFor = null; renderDetail(); },
+  dbg: () => {
+    if (!proj().onBoard) { flashBox.hidden = false; flashBox.innerHTML = '<p>Flash a version first. Notes attach to whatever is on the board.</p>'; return; }
+    listening = !listening; document.getElementById('noteForm').hidden = !listening;
+    if (listening) document.getElementById('noteInput').focus();
+    renderDetail();
+  },
+  stamp: d => { const v = ver(); v.status = d.s; v.reason = 'Marked ' + STATUS[d.s].label.toLowerCase() + ' by you at ' + now(); renderAll(); },
+  fix: d => { const i = ver().issues[+d.k]; i.state = 'verified'; i.by = 'You, at ' + now(); renderAll(); },
+  newp: () => { const n = 'New Project ' + (P.length + 1); P.push({name:n, board:'Choose a board profile', pcb:'not linked', onBoard:null, versions:[{id:'v1', status:'draft', reason:'Empty project.', date:'Today', hash:'—', summary:['Fresh project folder with an empty build story and debug log.'], libs:['none'], core:'—', compiler:'—', diff:[['a','+ new project']], issues:[]}]}); pi = P.length - 1; vid = 'v1'; renderAll(); }
+};
+document.addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (b) actions[b.dataset.a](b.dataset); });
+document.getElementById('noteForm').addEventListener('submit', e => {
+  e.preventDefault(); const inp = document.getElementById('noteInput'), t = inp.value.trim(); if (!t) return;
+  const p = proj(), v = ver(p.onBoard); v.issues.push({t:now(), text:t, state:'open'}); inp.value = '';
+  vid = v.id; tab = 'issues'; renderAll();
+});
+renderAll();
+</script>
+</body>
+</html>

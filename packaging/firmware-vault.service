@@ -1,0 +1,12 @@
+[Unit]
+Description=Firmware Vault web page (port 8200)
+After=network-online.target
+
+[Service]
+# install.sh --service writes this file with the real path of bin/fv.
+ExecStart=@FV@ serve --port 8200
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target

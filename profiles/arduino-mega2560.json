@@ -1,0 +1,50 @@
+{
+  "id": "arduino-mega2560",
+  "name": "Arduino Mega 2560",
+  "family": "avr",
+  "backend": "platformio",
+  "tested_on_hardware": true,
+  "platformio": {
+    "platform": "platformio/atmelavr@5.3.0",
+    "board": "megaatmega2560",
+    "framework": "arduino"
+  },
+  "arduino": {
+    "fqbn": "arduino:avr:mega:cpu=atmega2560",
+    "platform": "arduino:avr@1.8.8"
+  },
+  "flash": {
+    "method": "avrdude",
+    "mcu": "atmega2560",
+    "protocol": "wiring",
+    "baud": 115200,
+    "usb_ids": [
+      "2341:0010",
+      "2341:0042",
+      "2a03:0010",
+      "2a03:0042",
+      "2341:0210",
+      "2341:0242",
+      "1a86:7523"
+    ]
+  },
+  "fields": [
+    {
+      "key": "fuses",
+      "label": "Fuse settings",
+      "side": "flash",
+      "from": {
+        "lfuse": "board:bootloader.lfuse",
+        "hfuse": "board:bootloader.hfuse",
+        "efuse": "board:bootloader.efuse"
+      }
+    },
+    {
+      "key": "bootloader",
+      "label": "Bootloader",
+      "side": "flash",
+      "from": "board:bootloader.file"
+    }
+  ],
+  "serial_baud": 115200
+}

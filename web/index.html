@@ -1,0 +1,951 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Firmware Vault</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --void:#020309; --deep:#060a17;
+  --cyan:#3af4ff; --violet:#a46bff; --green:#39ffa0; --amber:#ffbf3c; --red:#ff3b5c; --grey:#7d93a6;
+  --ink:#d9f7ff; --dim:#6a8598; --faint:#2a3d52;
+  --panel:rgba(7,13,30,.78); --line:rgba(58,244,255,.24);
+  --disp:"Orbitron","Eurostile","Bank Gothic",system-ui,sans-serif;
+  --mono:"Share Tech Mono",ui-monospace,Consolas,monospace;
+  --body:"Rajdhani","Segoe UI",system-ui,sans-serif;
+  --cut:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%}
+body{background:var(--void);color:var(--ink);font-family:var(--body);font-size:15px;font-weight:500;overflow-x:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:0}
+::selection{background:var(--violet);color:#fff}
+::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:var(--faint)}::-webkit-scrollbar-track{background:transparent}
+
+/* ---------- world: stars, nebula, grid floor, scanlines ---------- */
+#stars{position:fixed;inset:0;z-index:0}
+.nebula{position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(1000px 600px at 88% -12%,rgba(164,107,255,.24),transparent 62%),
+             radial-gradient(900px 560px at -8% 110%,rgba(58,244,255,.16),transparent 60%),
+             radial-gradient(700px 400px at 50% 120%,rgba(255,59,92,.08),transparent 70%)}
+.floor{position:fixed;left:-60%;right:-60%;bottom:0;height:60vh;z-index:0;pointer-events:none;
+  background-image:linear-gradient(rgba(164,107,255,.55) 2px,transparent 2px),linear-gradient(90deg,rgba(58,244,255,.45) 2px,transparent 2px);
+  background-size:80px 80px;transform:perspective(420px) rotateX(58deg);transform-origin:50% 100%;
+  -webkit-mask-image:linear-gradient(to top,#000 0%,transparent 75%);mask-image:linear-gradient(to top,#000 0%,transparent 75%);animation:floor 2.8s linear infinite;opacity:.5}
+.horizon{position:fixed;left:0;right:0;bottom:calc(60vh*.34);height:2px;z-index:0;pointer-events:none;background:linear-gradient(90deg,transparent,var(--violet),var(--cyan),var(--violet),transparent);box-shadow:0 0 30px 6px rgba(164,107,255,.35);opacity:.0}
+.scan{position:fixed;inset:0;z-index:50;pointer-events:none;opacity:.28;
+  background:repeating-linear-gradient(0deg,rgba(0,0,0,.5) 0 1px,transparent 1px 3px)}
+.scan::after{content:"";position:absolute;left:0;right:0;height:140px;top:-140px;
+  background:linear-gradient(transparent,rgba(58,244,255,.07),transparent);animation:sweep 7s linear infinite}
+.vignette{position:fixed;inset:0;z-index:49;pointer-events:none;background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.65))}
+
+/* ---------- boot ---------- */
+#boot{position:fixed;inset:0;z-index:100;background:var(--void);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:22px;transition:opacity .5s}
+#boot.gone{opacity:0;pointer-events:none}
+#boot pre{font-family:var(--mono);color:var(--green);font-size:13px;line-height:1.6;min-height:160px;width:min(560px,90vw);text-shadow:0 0 8px var(--green)}
+#boot .ring{width:120px;height:120px}
+#boot small{font-family:var(--mono);color:var(--dim);letter-spacing:.3em;font-size:10px}
+
+/* ---------- shell ---------- */
+.app{position:relative;z-index:1;max-width:1480px;margin:0 auto;padding:18px 16px 30px;display:flex;flex-direction:column;gap:14px;min-height:100vh}
+header{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:14px}
+.sigil{width:46px;height:46px;filter:drop-shadow(0 0 10px var(--cyan))}
+.sigil .o{animation:spin 22s linear infinite;transform-origin:50% 50%}
+.sigil .i{animation:spin 9s linear infinite reverse;transform-origin:50% 50%}
+h1{font-family:var(--disp);font-weight:900;font-size:21px;letter-spacing:.34em;text-shadow:0 0 16px rgba(58,244,255,.7),0 0 2px #fff;position:relative}
+h1 small{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.42em;color:var(--dim);font-weight:400;margin-top:4px;text-shadow:none}
+.bench{font-family:var(--mono);font-size:12px;letter-spacing:.12em;color:var(--dim);display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  padding:9px 16px;border:1px solid var(--line);background:var(--panel);clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)}
+.bench b{color:var(--cyan);font-weight:400}
+.lamp{width:9px;height:9px;background:var(--green);box-shadow:0 0 10px var(--green);animation:pulse 2s ease-in-out infinite;flex:none}
+.lamp.off{background:var(--faint);box-shadow:none;animation:none}
+.lamp.warn{background:var(--amber);box-shadow:0 0 10px var(--amber)}
+.ticker{overflow:hidden;white-space:nowrap;font-family:var(--mono);font-size:12px;color:rgba(164,107,255,.55);letter-spacing:.5em;border-top:1px solid rgba(164,107,255,.18);border-bottom:1px solid rgba(164,107,255,.18);padding:3px 0;mask-image:linear-gradient(90deg,transparent,#000 10%,#000 90%,transparent)}
+.ticker span{display:inline-block;animation:tick 60s linear infinite}
+
+main{display:grid;grid-template-columns:250px minmax(300px,390px) minmax(0,1fr);gap:14px;align-items:start}
+.panel{position:relative;background:var(--panel);padding:18px;backdrop-filter:blur(7px);
+  clip-path:polygon(var(--cut) 0,100% 0,100% calc(100% - var(--cut)),calc(100% - var(--cut)) 100%,0 100%,0 var(--cut));
+  box-shadow:inset 0 0 0 1px var(--line),inset 0 0 40px rgba(58,244,255,.04)}
+.panel::before{content:"";position:absolute;top:0;left:0;width:calc(var(--cut)*1.42);height:2px;background:var(--cyan);transform-origin:0 0;transform:translate(0,var(--cut)) rotate(-45deg);box-shadow:0 0 8px var(--cyan)}
+.panel::after{content:"";position:absolute;top:0;right:22px;width:70px;height:3px;background:linear-gradient(90deg,var(--cyan),var(--violet));box-shadow:0 0 12px var(--cyan)}
+.label{font-family:var(--disp);font-size:10px;font-weight:700;letter-spacing:.32em;color:var(--dim);text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.label::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line),transparent)}
+.label i{font-style:normal;color:var(--violet);font-family:var(--mono);letter-spacing:.1em}
+
+/* projects */
+.proj{display:block;width:100%;text-align:left;padding:11px 12px 11px 16px;margin-bottom:8px;position:relative;transition:.2s;
+  background:linear-gradient(90deg,rgba(58,244,255,.03),transparent);border-left:2px solid var(--faint)}
+.proj:hover{background:rgba(58,244,255,.08)}
+.proj.sel{background:linear-gradient(90deg,rgba(58,244,255,.2),transparent);border-left-color:var(--cyan);box-shadow:-8px 0 20px -10px var(--cyan)}
+.proj b{display:block;font-family:var(--disp);font-size:12px;letter-spacing:.12em;font-weight:700}
+.proj span{font-family:var(--mono);font-size:11px;color:var(--dim)}
+.proj .dot{position:absolute;right:10px;top:13px}
+.pinfo{margin-top:6px;padding:12px;border:1px dashed var(--faint);font-family:var(--mono);font-size:11.5px;color:var(--dim);line-height:1.7}
+.pinfo b{color:var(--ink);font-weight:400}
+.ghost{width:100%;margin-top:12px;padding:10px;font-family:var(--disp);font-size:10px;font-weight:700;letter-spacing:.28em;color:var(--violet);border:1px dashed rgba(164,107,255,.55);transition:.2s}
+.ghost:hover{background:rgba(164,107,255,.12);box-shadow:0 0 20px -6px var(--violet)}
+.ports{margin-top:16px}
+.port{font-family:var(--mono);font-size:11px;color:var(--dim);display:flex;gap:8px;align-items:center;padding:4px 0}
+
+/* timeline */
+.pinned{display:flex;flex-direction:column;gap:3px;width:100%;padding:12px 16px;margin-bottom:16px;text-align:left;position:relative;
+  background:linear-gradient(90deg,rgba(57,255,160,.2),rgba(57,255,160,.03));box-shadow:inset 0 0 0 1px rgba(57,255,160,.6);
+  clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,0 100%);animation:glowG 3s ease-in-out infinite}
+.pinned b{font-family:var(--disp);font-size:11px;letter-spacing:.24em;color:var(--green);text-shadow:0 0 10px var(--green)}
+.pinned span{font-family:var(--mono);font-size:11px;color:var(--dim)}
+.nogood{font-family:var(--mono);font-size:11px;color:var(--dim);padding:10px 14px;margin-bottom:16px;border:1px dashed var(--faint)}
+.rail{position:relative;padding-left:22px}
+.rail::before{content:"";position:absolute;left:7px;top:6px;bottom:6px;width:2px;background:linear-gradient(var(--cyan),var(--violet),transparent);box-shadow:0 0 10px var(--cyan);opacity:.6}
+.cell{position:relative;display:block;width:100%;text-align:left;padding:13px 14px 12px 16px;margin-bottom:10px;background:rgba(4,9,22,.75);
+  box-shadow:inset 0 0 0 1px var(--line);transition:.18s;clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,10px 100%,0 calc(100% - 10px))}
+.cell::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--c);box-shadow:0 0 14px var(--c)}
+.node{position:absolute;left:-21px;top:17px;width:12px;height:12px;transform:rotate(45deg);background:var(--void);border:2px solid var(--c);box-shadow:0 0 10px var(--c)}
+.cellwrap{position:relative}
+.cell:hover{box-shadow:inset 0 0 0 1px var(--c);transform:translateX(3px)}
+.cell.sel{box-shadow:inset 0 0 0 1px var(--c),inset 0 0 30px -8px var(--c);background:linear-gradient(90deg,color-mix(in srgb,var(--c) 16%,transparent),rgba(4,9,22,.8))}
+.row1{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.vname{font-family:var(--disp);font-size:18px;font-weight:900;letter-spacing:.1em}
+.badge{font-family:var(--disp);font-size:8.5px;font-weight:700;letter-spacing:.2em;padding:4px 8px;color:var(--c);box-shadow:inset 0 0 0 1px var(--c);text-shadow:0 0 8px var(--c);white-space:nowrap;
+  clip-path:polygon(5px 0,100% 0,calc(100% - 5px) 100%,0 100%)}
+.meta{margin-top:7px;font-family:var(--mono);font-size:11px;color:var(--dim);display:flex;gap:12px;flex-wrap:wrap}
+.meta .onb{color:var(--cyan);text-shadow:0 0 8px var(--cyan)}
+.meta .iss{color:var(--amber)}
+.vnote{margin-top:6px;font-size:13.5px;color:#a9c4d4;line-height:1.35}
+
+/* detail */
+.dhead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px}
+.dhead h2{font-family:var(--disp);font-weight:900;font-size:40px;letter-spacing:.08em;line-height:1;color:#fff;text-shadow:0 0 22px var(--c),0 0 2px var(--c)}
+.dhead .reason{color:#a9c4d4;font-size:15px;margin-top:8px;max-width:52ch}
+.dhead .who{font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:4px}
+.glitch:hover{animation:glitch .35s steps(2) 1}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.btn{font-family:var(--disp);font-size:10.5px;font-weight:700;letter-spacing:.22em;padding:13px 18px;color:var(--cyan);text-transform:uppercase;transition:.18s;
+  background:rgba(58,244,255,.06);box-shadow:inset 0 0 0 1px var(--cyan);clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)}
+.btn:hover{background:rgba(58,244,255,.18);box-shadow:inset 0 0 0 1px var(--cyan),0 0 26px -4px var(--cyan);text-shadow:0 0 8px var(--cyan)}
+.btn.primary{color:#fff;background:linear-gradient(135deg,rgba(58,244,255,.4),rgba(164,107,255,.4));text-shadow:0 0 10px var(--cyan)}
+.btn.primary:hover{background:linear-gradient(135deg,rgba(58,244,255,.6),rgba(164,107,255,.6))}
+.btn.violet{color:var(--violet);box-shadow:inset 0 0 0 1px var(--violet);background:rgba(164,107,255,.07)}
+.btn.violet:hover{background:rgba(164,107,255,.2)}
+.btn.live{color:var(--red);box-shadow:inset 0 0 0 1px var(--red);background:rgba(255,59,92,.12);animation:pulseB 1.3s ease-in-out infinite}
+.btn.danger{color:var(--red);box-shadow:inset 0 0 0 1px var(--red);background:rgba(255,59,92,.12)}
+.btn.green{color:var(--green);box-shadow:inset 0 0 0 1px var(--green);background:rgba(57,255,160,.07)}
+.btn.sm{padding:7px 11px;font-size:9px}
+.btn.quiet{color:var(--dim);box-shadow:inset 0 0 0 1px var(--faint);background:transparent}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+
+.console{margin-bottom:14px;padding:14px;background:rgba(0,0,0,.55);box-shadow:inset 0 0 0 1px var(--line);font-family:var(--mono);font-size:12px;max-height:280px;overflow:auto}
+.console[hidden]{display:none}
+.bar{height:5px;background:rgba(58,244,255,.12);margin-bottom:10px;overflow:hidden;position:relative}
+.bar i{position:absolute;inset:0;width:40%;background:linear-gradient(90deg,transparent,var(--cyan),var(--violet),transparent);animation:warp 1.1s linear infinite}
+.bar.done i{width:100%;animation:none;background:var(--green);box-shadow:0 0 14px var(--green)}
+.bar.fail i{width:100%;animation:none;background:var(--red)}
+.console p{color:var(--dim);line-height:1.6;white-space:pre-wrap;word-break:break-all}
+.console p.ok{color:var(--green);text-shadow:0 0 8px var(--green)}
+.console p.err{color:var(--red)}
+.console p.carry{color:var(--amber)}
+
+.alert{margin-bottom:14px;padding:18px;position:relative;background:rgba(255,59,92,.12);box-shadow:inset 0 0 0 2px var(--red);animation:klaxon 1s ease-in-out infinite}
+.alert::before{content:"";position:absolute;left:0;right:0;top:0;height:8px;background:repeating-linear-gradient(45deg,var(--red) 0 12px,transparent 12px 24px);opacity:.7}
+.alert h3{font-family:var(--disp);font-weight:900;color:var(--red);letter-spacing:.3em;font-size:16px;margin:6px 0 8px;text-shadow:0 0 14px var(--red)}
+.alert .actions{margin:14px 0 0}
+
+.listen{margin-bottom:14px;padding:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:rgba(255,59,92,.06);box-shadow:inset 0 0 0 1px rgba(255,59,92,.6)}
+.listen .rec{font-family:var(--disp);font-size:9.5px;font-weight:700;letter-spacing:.24em;color:var(--red);display:flex;align-items:center;gap:10px;white-space:nowrap}
+.radar{width:30px;height:30px;border-radius:50%;box-shadow:inset 0 0 0 1px var(--red);position:relative;overflow:hidden;flex:none}
+.radar::after{content:"";position:absolute;inset:0;background:conic-gradient(from 0deg,rgba(255,59,92,.8),transparent 30%);animation:spin 1.6s linear infinite}
+.listen input{flex:1;min-width:180px;background:rgba(0,0,0,.55);border:0;box-shadow:inset 0 0 0 1px var(--line);padding:11px 12px;outline:none;font-size:15px}
+.listen input:focus{box-shadow:inset 0 0 0 1px var(--cyan),0 0 16px -4px var(--cyan)}
+.listen .hint{flex-basis:100%;margin:0}
+
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:16px;flex-wrap:wrap}
+.tab{font-family:var(--disp);font-size:9.5px;font-weight:700;letter-spacing:.22em;padding:11px 12px;border-bottom:2px solid transparent;color:var(--dim);text-transform:uppercase}
+.tab:hover{color:var(--ink)}
+.tab.on{color:var(--cyan);border-bottom-color:var(--cyan);text-shadow:0 0 10px var(--cyan);background:linear-gradient(transparent,rgba(58,244,255,.08))}
+.tab em{font-style:normal;color:var(--amber);margin-left:6px}
+
+.sum li{list-style:none;padding:9px 0 9px 22px;position:relative;line-height:1.45;border-bottom:1px solid rgba(58,244,255,.07)}
+.sum li::before{content:"";position:absolute;left:2px;top:15px;width:7px;height:7px;transform:rotate(45deg);background:var(--violet);box-shadow:0 0 8px var(--violet)}
+.sum li b{color:#fff}
+h4{font-family:var(--disp);font-size:10px;font-weight:700;letter-spacing:.28em;color:var(--violet);margin:18px 0 6px;text-transform:uppercase}
+.para{line-height:1.5;color:#c3dbe6}
+.stamp{margin-top:22px;padding:14px;box-shadow:inset 0 0 0 1px var(--faint);background:rgba(0,0,0,.25)}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.chip{font-family:var(--disp);font-size:9px;font-weight:700;letter-spacing:.18em;padding:8px 11px;color:var(--c);box-shadow:inset 0 0 0 1px var(--c);transition:.15s}
+.chip:hover,.chip.on{background:color-mix(in srgb,var(--c) 24%,transparent);box-shadow:inset 0 0 0 1px var(--c),0 0 16px -4px var(--c)}
+.field{width:100%;background:rgba(0,0,0,.5);border:0;box-shadow:inset 0 0 0 1px var(--line);padding:10px 12px;outline:none;font-size:14.5px}
+.field:focus{box-shadow:inset 0 0 0 1px var(--cyan)}
+.hint{font-size:13px;color:var(--dim);margin-top:8px;line-height:1.45}
+
+.issue{display:flex;gap:12px;align-items:flex-start;padding:12px;margin-bottom:8px;background:rgba(0,0,0,.3);box-shadow:inset 0 0 0 1px var(--line);border-left:3px solid var(--amber)}
+.issue.done{border-left-color:var(--green);opacity:.62}
+.issue.reopened{border-left-color:var(--red)}
+.issue .id{font-family:var(--mono);font-size:11px;color:var(--violet);white-space:nowrap;padding-top:2px}
+.issue .x{flex:1;line-height:1.4;font-size:15px}
+.issue .sub{display:block;font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:5px;line-height:1.5}
+.issue .sub.ok{color:var(--green)}
+.issue .btns{display:flex;flex-direction:column;gap:6px}
+.empty{color:var(--dim);font-family:var(--mono);font-size:12px;padding:16px 0;letter-spacing:.12em}
+
+.kv{display:grid;grid-template-columns:170px minmax(0,1fr);font-size:14px}
+.kv>div{padding:8px 0;border-bottom:1px solid rgba(58,244,255,.07);min-width:0;overflow-wrap:anywhere}
+.kv>div:nth-child(odd){font-family:var(--disp);font-size:9px;font-weight:700;letter-spacing:.2em;color:var(--dim);text-transform:uppercase;padding-top:11px}
+code,.mono{font-family:var(--mono);font-size:12.5px}
+.pin{display:inline-block;margin:2px 6px 2px 0;padding:2px 8px;box-shadow:inset 0 0 0 1px rgba(164,107,255,.55);color:#d6c3ff;font-family:var(--mono);font-size:12px}
+.mem{height:6px;background:rgba(58,244,255,.12);margin:4px 0 2px;max-width:280px}.mem i{display:block;height:100%;background:linear-gradient(90deg,var(--cyan),var(--violet))}
+table.t{border-collapse:collapse;width:100%;font-family:var(--mono);font-size:12px}
+table.t td,table.t th{padding:5px 8px;border-bottom:1px solid rgba(58,244,255,.08);text-align:left}
+table.t th{color:var(--dim);font-weight:400}
+
+.diff{font-family:var(--mono);font-size:12px;line-height:1.6;background:rgba(0,0,0,.45);padding:10px 12px;box-shadow:inset 0 0 0 1px var(--line);overflow-x:auto;margin-bottom:12px}
+.diff div{white-space:pre}
+.diff .a{color:var(--green)}.diff .r{color:var(--red)}.diff .h{color:var(--violet)}.diff .n{color:var(--dim)}
+.md{line-height:1.55;color:#c3dbe6}
+.md h1,.md h2,.md h3{font-family:var(--disp);letter-spacing:.14em;color:#fff;margin:16px 0 8px;font-size:14px}
+.md h1{font-size:16px;color:var(--cyan)}
+.md p{margin:8px 0}.md ul{margin:6px 0 6px 20px}.md li{margin:3px 0}
+.md code{color:#d6c3ff}.md em{color:var(--dim)}
+.md table{border-collapse:collapse;font-family:var(--mono);font-size:12px;margin:8px 0}
+.md td,.md th{padding:4px 10px;border-bottom:1px solid rgba(58,244,255,.1);text-align:left}
+.files{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+pre.src{font-family:var(--mono);font-size:12px;line-height:1.55;background:rgba(0,0,0,.5);padding:12px;box-shadow:inset 0 0 0 1px var(--line);overflow:auto;max-height:560px;color:#cfe6f0}
+
+/* modal + toast */
+.modal{position:fixed;inset:0;z-index:80;background:rgba(2,3,9,.75);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:16px}
+.modal[hidden]{display:none}
+.modal .panel{width:min(520px,100%)}
+.modal label{display:block;font-family:var(--disp);font-size:9px;font-weight:700;letter-spacing:.24em;color:var(--dim);margin:12px 0 6px;text-transform:uppercase}
+.toast{position:fixed;right:18px;bottom:18px;z-index:90;max-width:min(460px,calc(100vw - 36px));padding:14px 16px;background:rgba(7,13,30,.95);box-shadow:inset 0 0 0 1px var(--c,var(--cyan)),0 0 30px -8px var(--c,var(--cyan));font-size:14px;line-height:1.4;animation:rise .25s both;white-space:pre-wrap}
+.toast[hidden]{display:none}
+footer{font-family:var(--mono);font-size:10px;letter-spacing:.3em;color:var(--faint);text-align:center;padding:4px;display:flex;justify-content:center;gap:16px;flex-wrap:wrap}
+footer button{color:var(--dim);letter-spacing:.2em}
+
+/* ---------- comms: serial terminals ---------- */
+.portrow{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid rgba(58,244,255,.07);font-family:var(--mono);font-size:11px;color:var(--dim)}
+.portrow b{color:var(--ink);font-weight:400}
+.portrow small{display:block;font-size:10px;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.portrow small.onb{color:var(--cyan)}
+.portrow .open{color:var(--green)}
+.termadd{margin-top:10px}
+#terms{display:flex;flex-direction:column;gap:12px;margin-top:12px}
+.bay{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(440px,100%),1fr));gap:14px}
+.bay:empty{display:none}
+.term{--t:var(--green);position:relative;background:rgba(1,4,10,.82);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--t) 45%,transparent),0 0 24px -12px var(--t);
+  clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,10px 100%,0 calc(100% - 10px));display:flex;flex-direction:column;min-width:0}
+.term::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--t);box-shadow:0 0 12px var(--t)}
+.thead{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px 8px 6px 11px;border-bottom:1px solid color-mix(in srgb,var(--t) 25%,transparent)}
+.tname{font-family:var(--disp);font-size:10px;font-weight:900;letter-spacing:.2em;color:var(--t);text-shadow:0 0 8px var(--t);white-space:nowrap}
+.thead .grow{flex:1}
+.tsel{background:rgba(0,0,0,.6);border:0;box-shadow:inset 0 0 0 1px var(--faint);padding:4px 5px;font-family:var(--mono);font-size:11px;color:var(--ink);outline:none;min-width:0}
+.tsel:focus{box-shadow:inset 0 0 0 1px var(--t)}
+.tsel.port{flex:1 1 140px}
+.tb{font-family:var(--mono);font-size:11px;padding:4px 7px;color:var(--dim);box-shadow:inset 0 0 0 1px var(--faint);line-height:1.1;white-space:nowrap}
+.tb:hover{color:var(--t);box-shadow:inset 0 0 0 1px var(--t)}
+.tb.on{color:var(--t);box-shadow:inset 0 0 0 1px var(--t);background:color-mix(in srgb,var(--t) 14%,transparent)}
+.tb.go{color:var(--t);box-shadow:inset 0 0 0 1px var(--t)}
+.tb.stop{color:var(--red);box-shadow:inset 0 0 0 1px var(--red)}
+.tscreen{height:230px;overflow:auto;padding:6px 8px 6px 11px;font-family:var(--mono);font-size:11.5px;line-height:1.38;color:color-mix(in srgb,var(--t) 82%,#fff);
+  text-shadow:0 0 6px color-mix(in srgb,var(--t) 55%,transparent);white-space:pre-wrap;word-break:break-all;
+  background:repeating-linear-gradient(0deg,rgba(255,255,255,.018) 0 1px,transparent 1px 3px)}
+.bay .tscreen{height:360px;font-size:12.5px}
+.tscreen .ts{color:var(--dim);text-shadow:none;margin-right:6px}
+.tscreen .ev{color:var(--violet);text-shadow:0 0 6px var(--violet)}
+.tscreen .ev.err{color:var(--red);text-shadow:0 0 6px var(--red)}
+.tscreen .ev.warn{color:var(--amber);text-shadow:0 0 6px var(--amber)}
+.tscreen .ev.ok{color:var(--green)}
+.tscreen .tx{color:var(--cyan)}
+.tscreen .hx{color:var(--dim);text-shadow:none}
+.tscreen .idle{color:var(--faint);text-shadow:none;letter-spacing:.2em}
+.ttools{display:flex;flex-wrap:wrap;gap:5px;align-items:center;padding:5px 8px 5px 11px;border-top:1px solid color-mix(in srgb,var(--t) 18%,transparent)}
+.ttools .cnt{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--dim);white-space:nowrap}
+.tin{display:flex;gap:5px;padding:0 8px 8px 11px}
+.tin input{flex:1;min-width:0;background:rgba(0,0,0,.6);border:0;box-shadow:inset 0 0 0 1px var(--faint);padding:6px 8px;font-family:var(--mono);font-size:12px;outline:none;color:var(--t)}
+.tin input:focus{box-shadow:inset 0 0 0 1px var(--t),0 0 14px -6px var(--t)}
+.tin input:disabled{opacity:.45}
+.flashrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.flashrow .tsel{font-size:12px;padding:9px 8px;max-width:260px}
+
+@keyframes pulse{50%{opacity:.3}}
+@keyframes pulseB{50%{box-shadow:inset 0 0 0 1px var(--red),0 0 26px -2px var(--red)}}
+@keyframes glowG{50%{box-shadow:inset 0 0 0 1px rgba(57,255,160,.9),0 0 26px -6px var(--green)}}
+@keyframes klaxon{50%{background:rgba(255,59,92,.24)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes floor{to{background-position:0 80px}}
+@keyframes sweep{to{top:100%}}
+@keyframes tick{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@keyframes warp{from{left:-40%}to{left:100%}}
+@keyframes glitch{0%{transform:translate(2px,-1px);text-shadow:-2px 0 var(--red),2px 0 var(--cyan)}50%{transform:translate(-2px,1px);text-shadow:2px 0 var(--violet),-2px 0 var(--green)}100%{transform:none}}
+.cellwrap,.issue,.sum li{animation:rise .3s both}
+@media (max-width:1100px){main{grid-template-columns:230px minmax(0,1fr)}#detailPanel{grid-column:1/-1}}
+@media (max-width:720px){main{grid-template-columns:1fr}.dhead h2{font-size:30px}.kv{grid-template-columns:1fr}.kv>div:nth-child(odd){padding-bottom:0;border:0}h1{font-size:16px;letter-spacing:.24em}}
+body.calm *{animation:none!important}
+body.calm .floor,body.calm #stars{display:none}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<canvas id="stars"></canvas><div class="nebula"></div><div class="floor"></div><div class="vignette"></div><div class="scan"></div>
+
+<div id="boot">
+  <svg class="ring" viewBox="0 0 120 120" fill="none">
+    <circle cx="60" cy="60" r="54" stroke="#3af4ff" stroke-width="1" stroke-dasharray="4 6" style="animation:spin 6s linear infinite;transform-origin:50% 50%"/>
+    <polygon points="60,14 100,37 100,83 60,106 20,83 20,37" stroke="#a46bff" stroke-width="1.5" style="animation:spin 10s linear infinite reverse;transform-origin:50% 50%"/>
+    <circle cx="60" cy="60" r="7" fill="#3af4ff" style="animation:pulse 1s infinite"/>
+  </svg>
+  <pre id="bootText"></pre>
+  <small>TAP OR PRESS ANY KEY TO SKIP</small>
+</div>
+
+<div class="app">
+  <header>
+    <div class="brand">
+      <svg class="sigil" viewBox="0 0 46 46" fill="none" stroke-width="1.5">
+        <g class="o"><polygon points="23,2 41,12.5 41,33.5 23,44 5,33.5 5,12.5" stroke="#3af4ff"/><circle cx="23" cy="2" r="1.8" fill="#3af4ff"/></g>
+        <g class="i"><polygon points="23,11 33,17 33,29 23,35 13,29 13,17" stroke="#a46bff"/></g>
+        <circle cx="23" cy="23" r="3.2" fill="#3af4ff"/>
+      </svg>
+      <h1 class="glitch">FIRMWARE VAULT<small>KNOWN BUILDS · SEALED · FLASHABLE</small></h1>
+    </div>
+    <div class="bench" id="bench"></div>
+  </header>
+  <div class="ticker"><span id="ticker"></span></div>
+
+  <main>
+    <section class="panel">
+      <div class="label">Projects</div>
+      <div id="projects"></div>
+      <button class="ghost" data-a="newp">+ New project</button>
+      <div id="pinfo"></div>
+      <div class="ports"><div class="label">Comms <i id="hostUsb">usb</i></div><div id="ports"></div>
+        <div id="terms"></div>
+        <button class="ghost termadd" data-a="termAdd">+ Terminal</button></div>
+    </section>
+    <section class="panel"><div class="label">Timeline <i>newest first</i></div><div id="versions"></div></section>
+    <section class="panel" id="detailPanel"><div id="detail"><div class="empty">SELECT A PROJECT</div></div></section>
+  </main>
+  <section class="bay" id="bay"></section>
+  <footer><span id="footHost">FIRMWARE VAULT</span><button data-a="calm" id="calmBtn">MOTION: ON</button></footer>
+</div>
+
+<div class="modal" id="modal" hidden><div class="panel" id="modalBody"></div></div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+/* ================= helpers ================= */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const COLORS = {draft:'#7d93a6', testing:'#3af4ff', good:'#39ffa0', caveats:'#ffbf3c', bad:'#ff3b5c'};
+const SHORT = {draft:'DRAFT', testing:'TESTING', good:'KNOWN GOOD', caveats:'GOOD · CAVEATS', bad:'DO NOT DEPLOY'};
+const fmtTime = iso => { if (!iso) return ''; const d = new Date(iso); return isNaN(d) ? iso : d.toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', hour12:false}); };
+const short = h => h ? h.slice(0,8) + '…' + h.slice(-4) : '—';
+async function api(path, body){
+  const opt = body === undefined ? {} : {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)};
+  const r = await fetch('/api' + path, opt);
+  const ct = r.headers.get('content-type') || '';
+  const data = ct.includes('json') ? await r.json() : await r.text();
+  if (!r.ok) throw new Error(data.error || ('HTTP ' + r.status));
+  return data;
+}
+let toastT;
+function toast(msg, color){ const t = $('#toast'); t.textContent = msg; t.style.setProperty('--c', color || '#3af4ff'); t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 6500); }
+const fail = e => toast(e.message || String(e), '#ff3b5c');
+
+/* tiny markdown: headings, lists, tables, bold, italics, code */
+function md(src){
+  const inline = s => esc(s).replace(/`([^`]+)`/g,'<code>$1</code>').replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>').replace(/\*([^*]+)\*/g,'<em>$1</em>');
+  const out = []; let list = false, table = null;
+  const flush = () => { if (list){ out.push('</ul>'); list = false; } if (table){ out.push('<table>' + table.join('') + '</table>'); table = null; } };
+  for (const raw of String(src || '').split('\n')){
+    const l = raw.trimEnd();
+    let m;
+    if (/^\|.*\|$/.test(l)){ if (/^\|[-| :]+\|$/.test(l)) continue; if (!table){ flush(); table = []; }
+      table.push('<tr>' + l.slice(1,-1).split('|').map(c => `<td>${inline(c.trim())}</td>`).join('') + '</tr>'); continue; }
+    if ((m = l.match(/^(#{1,3})\s+(.*)/))){ flush(); out.push(`<h${m[1].length}>${inline(m[2])}</h${m[1].length}>`); continue; }
+    if ((m = l.match(/^\s*[-*]\s+(.*)/))){ if (table) flush(); if (!list){ out.push('<ul>'); list = true; } out.push(`<li>${inline(m[1])}</li>`); continue; }
+    if (!l.trim()){ flush(); continue; }
+    flush(); out.push(`<p>${inline(l)}</p>`);
+  }
+  flush(); return `<div class="md">${out.join('')}</div>`;
+}
+
+/* ================= state ================= */
+const S = { meta:null, projects:[], slug:null, P:null, vid:null, V:null, tab:'summary', diffBase:null, diffData:null,
+            srcFile:null, srcText:'', warnFor:null, sports:[], flashPort:{}, job:null, jobLines:[], jobState:null, carried:[], rec:null, recOn:false, lastSig:'' };
+const proj = () => S.projects.find(p => p.slug === S.slug);
+
+async function loadAll(keepVersion){
+  S.projects = await api('/projects');
+  if (!S.slug) {   // deep link: #<project> or #<project>/<version>
+    const [hs, hv] = decodeURIComponent(location.hash.slice(1)).split('/');
+    if (hs && S.projects.some(p => p.slug === hs)) { S.slug = hs; if (hv) { S.vid = hv; keepVersion = true; } }
+  }
+  if (!S.slug && S.projects.length) S.slug = S.projects[0].slug;
+  if (S.slug) await loadProject(keepVersion); else render();
+}
+async function loadProject(keepVersion){
+  S.P = await api('/projects/' + encodeURIComponent(S.slug));
+  const ids = S.P.versions.map(v => v.id);
+  if (!keepVersion || !ids.includes(S.vid)) S.vid = S.P.project.latest_good || ids[0] || null;
+  if (S.vid) await loadVersion(); else { S.V = null; render(); }
+}
+async function loadVersion(){
+  S.V = await api(`/projects/${encodeURIComponent(S.slug)}/versions/${S.vid}`);
+  try { history.replaceState(null, '', '#' + S.slug + '/' + S.vid); } catch(e){}
+  S.diffData = null; S.srcFile = null;
+  render();
+}
+
+/* ================= render ================= */
+function render(){ renderBench(); renderProjects(); renderVersions(); renderDetail(); }
+
+function renderBench(){
+  const p = proj(), ports = (S.meta && S.meta.ports) || [];
+  const usb = ports.length ? `<span class="lamp"></span>USB <b>${ports.length}</b>` : `<span class="lamp off"></span>NO BOARD ON USB`;
+  if (!p){ $('#bench').innerHTML = `${usb}`; return; }
+  const on = p.on_board;
+  $('#bench').innerHTML = `${usb}<span style="color:var(--faint)">│</span>` + (on
+    ? `<span class="lamp ${p.debug_active ? 'warn' : ''}"></span>ON BOARD <b>${esc(p.name.toUpperCase())}</b> ◂ <b>${esc(on)}</b>${p.debug_active ? ' · <b style="color:var(--red)">DEBUG NOTES LIVE</b>' : ''}`
+    : `<span class="lamp off"></span>NOTHING FLASHED · ${esc(p.board)}`);
+}
+function renderProjects(){
+  $('#projects').innerHTML = S.projects.map(p =>
+    `<button class="proj ${p.slug === S.slug ? 'sel' : ''}" data-a="proj" data-s="${esc(p.slug)}"><b>${esc(p.name)}</b><span>${esc(p.board)}</span>
+     ${p.on_board ? `<span class="dot lamp ${p.debug_active ? 'warn' : ''}"></span>` : ''}</button>`).join('') || '<div class="empty">NO PROJECTS YET</div>';
+  const p = proj();
+  $('#pinfo').innerHTML = p ? `<div class="pinfo">
+      Backend <b>${esc(p.backend)}</b><br>Profile <b>${esc(p.profile)}</b><br>
+      PCB <b>${p.pcb ? esc(p.pcb.path.split('/').pop()) + (p.pcb.revision ? ' · rev ' + esc(p.pcb.revision) : '') : 'not linked'}</b><br>
+      Source <b style="word-break:break-all">${esc(S.P ? S.P.work_dir : '')}</b>
+      <button class="btn sm quiet" style="margin-top:10px" data-a="settings">Hardware + PCB</button></div>` : '';
+  renderPorts();
+}
+function renderVersions(){
+  if (!S.P){ $('#versions').innerHTML = ''; return; }
+  const p = S.P.project, good = p.latest_good;
+  let h = good ? `<button class="pinned" data-a="ver" data-id="${good}"><b>◆ LATEST KNOWN GOOD · ${esc(good)}</b><span>Recovery is one click: select, then Flash</span></button>`
+               : `<div class="nogood">No known-good version yet. You stamp one after it works on the real board.</div>`;
+  h += '<div class="rail">' + S.P.versions.map((v,k) => {
+    const c = COLORS[v.status];
+    return `<div class="cellwrap" style="--c:${c};animation-delay:${k*40}ms"><span class="node"></span>
+      <button class="cell ${v.id === S.vid ? 'sel' : ''}" data-a="ver" data-id="${v.id}">
+      <div class="row1"><span class="vname">${esc(v.id)}</span><span class="badge">${SHORT[v.status]}</span></div>
+      ${v.note ? `<div class="vnote">${esc(v.note)}</div>` : ''}
+      <div class="meta"><span>${fmtTime(v.created)}</span><span class="${v.open_issues ? 'iss' : ''}">${v.open_issues} OPEN</span>${v.on_board ? '<span class="onb">● ON BOARD</span>' : ''}</div></button></div>`;
+  }).join('') + '</div>';
+  if (!S.P.versions.length) h += `<div class="empty">NO VERSIONS YET.<br><br>Claude Code makes them:<br>build → pin → create version.</div>`;
+  $('#versions').innerHTML = h;
+}
+
+function renderDetail(){
+  const el = $('#detail');
+  if (!S.P){ el.innerHTML = '<div class="empty">SELECT A PROJECT</div>'; return; }
+  if (!S.V){ el.innerHTML = `<div class="label">${esc(S.P.project.name)}</div><div class="empty">NO VERSIONS YET</div>
+     <p class="hint">Ask Claude Code to work on it through the vault. The working source is in<br><code>${esc(S.P.work_dir)}</code></p>`; return; }
+  const V = S.V, m = V.manifest, st = V.status.status, c = COLORS[st], p = S.P.project;
+  const open = V.issues.filter(i => i.state !== 'verified').length;
+  const listening = p.debug_active;
+  const flashing = S.jobState === 'run';
+  const alert = S.warnFor === V.id ? `<div class="alert"><h3>⚠ DO NOT DEPLOY</h3>
+      <div>You marked ${esc(V.id)} as bad: <b>${esc(V.status.reason)}</b></div>
+      <div class="actions"><button class="btn danger" data-a="flashGo" data-force="1">Flash anyway</button><button class="btn quiet" data-a="flashCancel">Cancel</button></div></div>` : '';
+  const voice = ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) && window.isSecureContext;
+  const listen = listening ? `<form class="listen" id="noteForm" autocomplete="off">
+      <span class="rec"><span class="radar"></span>LISTENING · ${esc(p.on_board)}</span>
+      <input id="noteInput" placeholder="Say or type what's wrong, press Enter. Each note becomes its own issue.">
+      ${voice ? `<button class="btn sm ${S.recOn ? 'live' : 'violet'}" type="button" data-a="mic">${S.recOn ? 'Mic on' : 'Mic'}</button>` : ''}
+      <button class="btn sm" type="submit">Log</button>
+      ${voice ? '' : `<p class="hint">Typing works here. Spoken notes come from the voice notepad, or from this page once it is served over HTTPS.</p>`}
+    </form>` : '';
+  const tabs = [['summary','Summary'],['issues','Issues'],['manifest','Manifest'],['diff','Diff'],['story','Build story'],['log','Debug log'],['wiring','Wiring'],['source','Source']];
+  el.innerHTML = `
+    <div class="dhead" style="--c:${c}"><div>
+      <div class="label" style="margin-bottom:8px">${esc(p.name)}</div>
+      <h2 class="glitch">${esc(V.id)}</h2>
+      <div class="reason">${esc(V.status.reason)}</div>
+      <div class="who">${esc(V.status.set_by || '')} · ${fmtTime(V.status.at)}${m.human.note ? ' · ' + esc(m.human.note) : ''}</div></div>
+      <span class="badge" style="--c:${c};font-size:10px;padding:6px 10px">${SHORT[st]}</span></div>
+    <div class="actions">
+      <span class="flashrow"><button class="btn primary" data-a="flash" ${flashing ? 'disabled' : ''}>⟁ Flash to board</button>${flashPortSelect()}</span>
+      <button class="btn ${listening ? 'live' : 'violet'}" data-a="dbg">${listening ? '■ Stop debug notes' : '◉ Start debug notes'}</button>
+      <a class="btn quiet" href="/api/projects/${encodeURIComponent(S.slug)}/versions/${V.id}/kit" title="Binaries and steps for flashing from the laptop">⇩ Flash kit</a>
+      <button class="btn quiet" data-a="laptop" title="Record that you flashed this from the laptop">Flashed from laptop</button>
+    </div>
+    ${alert}${consoleHtml()}${listen}
+    <div class="tabs">${tabs.map(([k,l]) => `<button class="tab ${S.tab === k ? 'on' : ''}" data-a="tab" data-t="${k}">${l}${k === 'issues' && open ? `<em>${open}</em>` : ''}</button>`).join('')}</div>
+    <div id="tabBody">${tabBody()}</div>`;
+  const f = $('#noteForm'); if (f){ f.addEventListener('submit', submitNote); if (!S.recOn) setTimeout(() => $('#noteInput') && $('#noteInput').focus(), 30); }
+}
+
+function consoleHtml(){
+  if (!S.jobState) return '';
+  const cls = S.jobState === 'ok' ? 'done' : S.jobState === 'fail' ? 'fail' : '';
+  return `<div class="console" id="console"><div class="bar ${cls}"><i></i></div>${S.jobLines.map(([k,t]) => `<p class="${k}">${esc(t)}</p>`).join('')}</div>`;
+}
+
+function tabBody(){
+  const V = S.V, m = V.manifest, sm = m.summary || {}, b = m.build;
+  if (S.tab === 'summary'){
+    const list = (arr, f) => (arr || []).length ? `<ul class="sum">${arr.map(f).join('')}</ul>` : '';
+    const named = x => typeof x === 'string' ? `<li>${esc(x)}</li>` : `<li><b>${esc(x.name)}</b> ${esc(x.why || '')}</li>`;
+    const ch = m.changes;
+    const chg = ch ? [...ch.added.map(x => `<li><b>+ ${esc(x.name)}</b> ${esc(x.version)}</li>`), ...ch.removed.map(x => `<li><b>− ${esc(x.name)}</b> ${esc(x.version)}</li>`),
+      ...ch.changed.map(x => `<li><b>${esc(x.name)}</b> ${esc(x.from)} → ${esc(x.to)}</li>`), ...ch.toolchain.map(x => `<li><b>${esc(x.what)}</b> ${esc(x.from)} → ${esc(x.to)}</li>`)] : [];
+    return `${sm.text ? `<p class="para">${esc(sm.text)}</p>` : ''}
+      ${(sm.added||[]).length ? '<h4>Libraries added</h4>' + list(sm.added, named) : ''}
+      ${(sm.ported||[]).length ? '<h4>Ported or written from scratch</h4>' + list(sm.ported, named) : ''}
+      ${(sm.not_used||[]).length ? '<h4>Deliberately not used</h4>' + list(sm.not_used, named) : ''}
+      ${chg.length ? `<h4>Changes from ${esc(m.parent)}</h4><ul class="sum">${chg.join('')}</ul>` : ''}
+      ${!sm.text && !(sm.added||[]).length && !chg.length ? '<p class="hint">No summary was written for this version.</p>' : ''}
+      <div class="stamp"><div class="label" style="margin-bottom:8px">Stamp this version · human only</div>
+        <input class="field" id="reason" placeholder="One-line reason, e.g. 'Ran 2 hours on the bench, readings clean'">
+        <div class="chips">${Object.keys(SHORT).map(k => `<button class="chip ${V.status.status === k ? 'on' : ''}" style="--c:${COLORS[k]}" data-a="stamp" data-s="${k}">${SHORT[k]}</button>`).join('')}</div>
+        <p class="hint">Claude Code can only set draft or testing. Known good, caveats and do not deploy are yours, after trying it on the real board.</p></div>`;
+  }
+  if (S.tab === 'issues'){
+    const row = (i, here) => {
+      const done = i.state === 'verified';
+      const fixes = i.fix_attempts.map(f => `fix tried in ${esc(f.version)}: ${esc(f.note)}`).join(' · ');
+      return `<div class="issue ${done ? 'done' : ''} ${i.state === 'reopened' ? 'reopened' : ''}">
+        <span class="id">${esc(i.id)}<br>${fmtTime(i.created).split(', ').pop()}</span>
+        <span class="x">${esc(i.text)}
+          <span class="sub">${esc(i.state.replace('_',' ').toUpperCase())} · ${here ? '' : 'seen on ' + esc(i.version) + ' · '}${esc(i.source)} · checked by ${i.verify === 'claude' ? 'Claude Code or you' : 'you, on hardware'}</span>
+          ${fixes ? `<span class="sub">${fixes}</span>` : ''}
+          ${done ? `<span class="sub ok">VERIFIED BY ${esc(i.closed.by)}${i.closed.on_version ? ' on ' + esc(i.closed.on_version) : ''} · ${fmtTime(i.closed.at)}${i.closed.evidence ? '<br>evidence: ' + esc(i.closed.evidence) : ''}</span>` : ''}</span>
+        <span class="btns">${done ? `<button class="btn sm quiet" data-a="reopen" data-i="${esc(i.id)}">Reopen</button>`
+                                  : `<button class="btn sm green" data-a="close" data-i="${esc(i.id)}">Fixed</button>`}</span></div>`;
+    };
+    const here = V.issues.map(i => row(i, true)).join('') || '<div class="empty">NO ISSUES LOGGED ON THIS VERSION</div>';
+    const other = (S.P.open_issues || []).filter(i => i.version !== V.id);
+    return here + (other.length ? `<h4>Still open on other versions</h4>` + other.map(i => row(i, false)).join('') : '');
+  }
+  if (S.tab === 'manifest'){
+    const pf = Object.entries(m.profile_fields || {}).map(([k,v]) => `<div>${esc(k.replace(/_/g,' '))}</div><div><code>${esc(typeof v === 'object' && v ? Object.entries(v).map(([a,c]) => a + ' ' + c).join(' · ') : v ?? '—')}</code></div>`).join('');
+    const mem = Object.entries(m.memory || {}).map(([k,v]) => `${k.toUpperCase()} ${v.used.toLocaleString()} / ${v.total.toLocaleString()} B<div class="mem"><i style="width:${Math.min(100, v.used/v.total*100).toFixed(1)}%"></i></div>`).join('');
+    const arts = `<table class="t"><tr><th>file</th><th>addr</th><th>size</th><th>sha256</th></tr>${m.artifacts.map(a => `<tr><td>${esc(a.file)}</td><td>${a.offset != null ? '0x' + a.offset.toString(16) : ''}</td><td>${a.size.toLocaleString()}</td><td title="${esc(a.sha256)}">${short(a.sha256)}</td></tr>`).join('')}</table>`;
+    const fl = m.flash; const flx = Object.entries(fl).filter(([k]) => !['method','bootloader'].includes(k)).map(([k,v]) => `${k} ${v}`).join(' · ');
+    return `<div class="kv">
+      <div>Board profile</div><div>${esc(b.profile)} · variant <code>${esc(b.variant)}</code></div>
+      <div>Backend</div><div>${esc(b.backend.name)} <code>${esc(b.backend.version)}</code>${b.build_mode ? ` · ${b.build_mode === 'profile' ? 'sketch profile (isolated install)' : 'installed core + libraries, versions checked'}` : ''}</div>
+      <div>Platform</div><div><span class="pin">${esc(b.platform?.name)} ${esc(b.platform?.version)}</span></div>
+      <div>Packages</div><div>${(b.packages || []).map(x => `<span class="pin">${esc(x.name)} ${esc(x.version)}</span>`).join('')}</div>
+      <div>Compiler</div><div><code>${esc(b.compiler)}</code></div>
+      <div>Libraries</div><div>${(b.libraries || []).length ? b.libraries.map(l => `<span class="pin" title="${l.local ? esc(l.local) : l.bundled_with_core ? 'comes with the core' : ''}">${esc(l.name)} ${esc(l.version)}${l.local ? ' · in source' : l.bundled_with_core ? ' · core' : ''}</span>`).join('') : 'none'}</div>
+      <div>Optimisation</div><div><code>${esc(b.optimization)}</code> · clock ${b.clock_hz ? (b.clock_hz/1e6) + ' MHz' : '—'}</div>
+      <div>Build flags</div><div><code>${esc((b.build_flags || []).join(' ') || '(none extra)')}</code></div>
+      ${pf}
+      <div>Memory</div><div>${mem || '—'}</div>
+      <div>Source hash</div><div><code>${esc(m.source_sha256)}</code></div>
+      <div>Binary hash</div><div><code>${esc(m.binary.sha256)}</code></div>
+      <div>Artifacts</div><div>${arts}</div>
+      <div>Flash method</div><div>${esc(fl.method)} <code>${esc(flx)}</code></div>
+      <div>Bootloader</div><div><code>${esc(fl.bootloader || '—')}</code></div>
+      <div>Hardware rev</div><div>${esc(m.human.hardware_revision || '—')}</div>
+      <div>PCB link</div><div>${m.human.pcb ? esc(m.human.pcb.path) + (m.human.pcb.revision ? ' · rev ' + esc(m.human.pcb.revision) : '') : 'not linked'}</div>
+      <div>Created</div><div>${fmtTime(m.created)} by ${esc(m.created_by)}${m.parent ? ' · parent ' + esc(m.parent) : ''}</div>
+      <div>Warnings</div><div>${(m.warnings || []).length ? m.warnings.map(w => `<code style="display:block;color:var(--amber)">${esc(w)}</code>`).join('') : 'none'}</div>
+      <div>Raw files</div><div><a class="btn sm quiet" target="_blank" href="${fileUrl('manifest.json')}">manifest.json</a> <a class="btn sm quiet" target="_blank" href="${fileUrl('build.log')}">build.log</a></div>
+    </div>`;
+  }
+  if (S.tab === 'diff'){
+    const opts = [...S.P.versions.map(v => v.id).filter(id => id !== V.id), 'work'];
+    const base = S.diffBase && opts.includes(S.diffBase) ? S.diffBase : (m.parent || opts[0]);
+    S.diffBase = base;
+    if (!S.diffData || S.diffData.key !== V.id + base){ loadDiff(base); return '<div class="empty">COMPUTING DIFF…</div>'; }
+    const d = S.diffData.d, L = d.libraries;
+    const libs = L ? [...L.added.map(x => `<div class="a">+ ${esc(x.name)} @ ${esc(x.version)}</div>`), ...L.removed.map(x => `<div class="r">- ${esc(x.name)} @ ${esc(x.version)}</div>`),
+      ...L.changed.map(x => `<div class="h">~ ${esc(x.name)} ${esc(x.from)} → ${esc(x.to)}</div>`), ...L.toolchain.map(x => `<div class="h">~ ${esc(x.what)} ${esc(x.from)} → ${esc(x.to)}</div>`)].join('') : '';
+    const sel = `<select class="field" style="width:auto" data-a="diffBase">${opts.map(o => `<option ${o === base ? 'selected' : ''} value="${o}">${o === 'work' ? 'working source (unsaved)' : o}</option>`).join('')}</select>`;
+    const files = d.files.map(f => `<div class="label" style="margin:14px 0 6px">${esc(f.file)} <i>${f.status}</i></div><div class="diff">${f.diff.split('\n').map(l =>
+      `<div class="${l.startsWith('+') && !l.startsWith('+++') ? 'a' : l.startsWith('-') && !l.startsWith('---') ? 'r' : l.startsWith('@@') ? 'h' : 'n'}">${esc(l)}</div>`).join('')}</div>`).join('');
+    const a = base === 'work' ? V.id : base, bb = base === 'work' ? 'work' : V.id;
+    return `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px"><span class="mono" style="color:var(--dim)">COMPARE ${esc(a)} → ${esc(bb)} · base</span>${sel}</div>
+      ${libs ? `<div class="label">Libraries and toolchain</div><div class="diff">${libs}</div>` : ''}
+      ${files || '<div class="empty">SOURCE IS IDENTICAL</div>'}`;
+  }
+  if (S.tab === 'story') return md(V.build_story);
+  if (S.tab === 'log') return md(V.debug_log) + (V.serial_logs.length ? '<h4>Serial captures</h4>' + V.serial_logs.map(n => `<a class="btn sm quiet" target="_blank" href="${fileUrl('serial/' + n)}">${esc(n)}</a> `).join('') : '');
+  if (S.tab === 'wiring') return md(V.wiring);
+  if (S.tab === 'source'){
+    const files = `<div class="files">${V.source_files.map(f => `<button class="chip ${S.srcFile === f ? 'on' : ''}" style="--c:#a46bff" data-a="src" data-f="${esc(f)}">${esc(f)}</button>`).join('')}</div>`;
+    return files + (S.srcFile ? `<pre class="src">${esc(S.srcText)}</pre>` : '<div class="empty">PICK A FILE. THE FULL SOURCE OF EVERY VERSION IS KEPT.</div>');
+  }
+  return '';
+}
+const fileUrl = n => `/api/projects/${encodeURIComponent(S.slug)}/versions/${S.vid}/file/${n.split('/').map(encodeURIComponent).join('/')}`;
+async function loadDiff(base){
+  const V = S.V, a = base === 'work' ? V.id : base, b = base === 'work' ? 'work' : V.id;
+  try { const d = await api(`/projects/${encodeURIComponent(S.slug)}/diff?a=${a}&b=${b}`); S.diffData = {key:V.id + base, d}; $('#tabBody').innerHTML = tabBody(); }
+  catch(e){ fail(e); }
+}
+
+/* ================= flashing ================= */
+function startFlash(force){
+  S.warnFor = null; S.jobState = 'run'; S.carried = [];
+  const port = chosenFlashPort();
+  S.jobLines = [['', `› Flashing ${S.vid} of ${proj().name} from ${esc((S.meta && S.meta.host) || 'the vault host')}${port ? ' on ' + port : ''}…`]];
+  const slug = S.slug, vid = S.vid;
+  renderDetail();
+  api(`/projects/${encodeURIComponent(slug)}/versions/${vid}/flash`, {force: !!force, port}).then(job => pollJob(job.id, 0)).catch(e => { S.jobState = 'fail'; S.jobLines.push(['err', e.message]); renderDetail(); });
+}
+async function pollJob(id, seen){
+  let j; try { j = await api('/jobs/' + id); } catch(e){ S.jobState = 'fail'; S.jobLines.push(['err', e.message]); renderDetail(); return; }
+  for (const l of j.lines.slice(seen)) S.jobLines.push(['', '› ' + l]);
+  if (!j.done){ const c = $('#console'); if (c){ c.outerHTML = consoleHtml(); const n = $('#console'); n.scrollTop = n.scrollHeight; } setTimeout(() => pollJob(id, j.lines.length), 350); return; }
+  if (j.ok){
+    S.jobState = 'ok'; S.jobLines.push(['ok', `✓ ${j.result.version} is now on the board (${j.result.port || 'programmer'})`]);
+    for (const i of j.result.carried_issues || []) S.jobLines.push(['carry', `still open from ${i.version}: ${i.id} ${i.text}`]);
+    beep(880);
+  } else { S.jobState = 'fail'; S.jobLines.push(['err', '✗ ' + j.error]); beep(180); }
+  await loadAll(true);
+}
+
+/* ================= notes / voice ================= */
+async function addNote(text, source){
+  if (!text.trim()) return;
+  try { const i = await api(`/projects/${encodeURIComponent(S.slug)}/notes`, {text, source}); toast(`${i.id} logged on ${i.version}: ${i.text}`, '#ffbf3c'); S.tab = 'issues';
+        const keep = S.vid; S.vid = i.version; await loadProject(true); if (!S.P.versions.find(v => v.id === keep)) S.vid = i.version; }
+  catch(e){ fail(e); }
+}
+function submitNote(e){ e.preventDefault(); const inp = $('#noteInput'); const t = inp.value; inp.value = ''; addNote(t, 'typed'); }
+function toggleMic(){
+  if (S.recOn){ S.recOn = false; S.rec && S.rec.stop(); renderDetail(); return; }
+  const R = window.SpeechRecognition || window.webkitSpeechRecognition; const r = new R();
+  r.continuous = true; r.interimResults = false; r.lang = 'en-US';
+  r.onresult = ev => { for (let k = ev.resultIndex; k < ev.results.length; k++) if (ev.results[k].isFinal) addNote(ev.results[k][0].transcript, 'voice'); };
+  r.onend = () => { if (S.recOn) try { r.start(); } catch(_){} };
+  r.onerror = ev => { toast('Microphone: ' + ev.error, '#ff3b5c'); S.recOn = false; renderDetail(); };
+  S.rec = r; S.recOn = true; r.start(); renderDetail();
+}
+
+/* ================= modals ================= */
+function modal(html){ $('#modalBody').innerHTML = html; $('#modal').hidden = false; }
+function closeModal(){ $('#modal').hidden = true; }
+$('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
+
+/* ================= actions ================= */
+const A = {
+  proj: async d => { S.slug = d.s; S.tab = 'summary'; S.warnFor = null; S.jobState = null; try { await loadProject(); } catch(e){ fail(e); } },
+  ver: async d => { S.vid = d.id; S.warnFor = null; try { await loadVersion(); } catch(e){ fail(e); } },
+  tab: d => { S.tab = d.t; renderDetail(); },
+  flash: () => { if (S.V.status.status === 'bad'){ S.warnFor = S.V.id; beep(220); renderDetail(); } else startFlash(false); },
+  flashGo: d => startFlash(!!d.force),
+  flashCancel: () => { S.warnFor = null; renderDetail(); },
+  laptop: async () => { try { await api(`/projects/${encodeURIComponent(S.slug)}/versions/${S.vid}/on-board`, {where:'laptop'}); toast(`${S.vid} recorded as on the board. Debug notes now attach to it.`, '#39ffa0'); await loadAll(true); } catch(e){ fail(e); } },
+  dbg: async () => { const on = !S.P.project.debug_active; if (!on && S.recOn){ S.recOn = false; S.rec && S.rec.stop(); }
+    try { await api(`/projects/${encodeURIComponent(S.slug)}/debug`, {active:on}); await loadAll(true); } catch(e){ fail(e); } },
+  mic: () => toggleMic(),
+  stamp: async d => {
+    const reason = ($('#reason').value || '').trim() || `Marked ${SHORT[d.s].toLowerCase()} after a hardware check`;
+    try { await api(`/projects/${encodeURIComponent(S.slug)}/versions/${S.vid}/status`, {status:d.s, reason}); toast(`${S.vid}: ${SHORT[d.s]}`, COLORS[d.s]); await loadAll(true); } catch(e){ fail(e); } },
+  close: d => modal(`<div class="label">Verify ${esc(d.i)} fixed</div><p class="hint">You checked it on the real board. Add what you saw (optional).</p>
+      <input class="field" id="ev" placeholder="e.g. graph scales right at 3 different ranges">
+      <div class="actions" style="margin-top:16px"><button class="btn green" data-a="closeGo" data-i="${esc(d.i)}">Verified fixed</button><button class="btn quiet" data-a="x">Cancel</button></div>`),
+  closeGo: async d => { const ev = $('#ev').value; closeModal(); try { await api(`/projects/${encodeURIComponent(S.slug)}/issues/${d.i}/close`, {evidence:ev}); await loadAll(true); } catch(e){ fail(e); } },
+  reopen: async d => { try { await api(`/projects/${encodeURIComponent(S.slug)}/issues/${d.i}/reopen`, {note:'reopened from the vault page'}); await loadAll(true); } catch(e){ fail(e); } },
+  x: () => closeModal(),
+  src: async d => { S.srcFile = d.f; try { S.srcText = await api(`/projects/${encodeURIComponent(S.slug)}/versions/${S.vid}/file/source/${d.f.split('/').map(encodeURIComponent).join('/')}`); } catch(e){ S.srcText = e.message; } $('#tabBody').innerHTML = tabBody(); },
+  newp: () => modal(`<div class="label">New project</div>
+      <label>Name</label><input class="field" id="np_name" placeholder="e.g. Telemetry Node">
+      <label>Board profile</label><select class="field" id="np_prof">${S.meta.profiles.map(p => `<option value="${esc(p.id)}">${esc(p.name)}${p.tested_on_hardware ? '' : ' (untested)'}</option>`).join('')}</select>
+      <label>Hardware notes</label><textarea class="field" id="np_notes" rows="3" placeholder="What is wired to what"></textarea>
+      <div class="actions" style="margin-top:16px"><button class="btn primary" data-a="newGo">Create</button><button class="btn quiet" data-a="x">Cancel</button></div>`),
+  newGo: async () => { try { const r = await api('/projects', {name:$('#np_name').value.trim(), profile:$('#np_prof').value, hardware_notes:$('#np_notes').value});
+      closeModal(); S.slug = r.slug; await loadAll(); toast(`${r.name} created. Its source starts as a pinned blink sketch.`, '#39ffa0'); } catch(e){ fail(e); } },
+  settings: () => { const p = proj(); modal(`<div class="label">${esc(p.name)} · hardware</div>
+      <label>Hardware notes</label><textarea class="field" id="st_notes" rows="4">${esc(p.hardware_notes || '')}</textarea>
+      <label>PCB project folder (EAGLE/Fusion .sch)</label><input class="field" id="st_pcb" value="${esc(p.pcb ? p.pcb.path : '')}" placeholder="~/pcb/my-board">
+      <label>Board revision</label><input class="field" id="st_rev" value="${esc(p.pcb ? p.pcb.revision || '' : '')}" placeholder="A">
+      <p class="hint">The pin map is read from the schematic and written into each new version's wiring notes.</p>
+      <div class="actions" style="margin-top:16px"><button class="btn primary" data-a="settingsGo">Save</button><button class="btn quiet" data-a="x">Cancel</button></div>`); },
+  settingsGo: async () => { const path = $('#st_pcb').value.trim();
+      try { await api(`/projects/${encodeURIComponent(S.slug)}/settings`, {hardware_notes:$('#st_notes').value, pcb: path ? {path, revision:$('#st_rev').value.trim()} : null}); closeModal(); await loadAll(true); toast('Saved', '#39ffa0'); } catch(e){ fail(e); } },
+  calm: () => { document.body.classList.toggle('calm'); const on = !document.body.classList.contains('calm'); $('#calmBtn').textContent = 'MOTION: ' + (on ? 'ON' : 'OFF'); try { localStorage.setItem('fv-calm', on ? '0' : '1'); } catch(_){} },
+};
+document.addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (b && b.tagName !== 'SELECT' && A[b.dataset.a]){ e.preventDefault(); A[b.dataset.a](b.dataset); } });
+document.addEventListener('change', e => {
+  if (e.target.dataset.a === 'diffBase'){ S.diffBase = e.target.value; S.diffData = null; $('#tabBody').innerHTML = tabBody(); }
+  if (e.target.dataset.a === 'flashPort'){ S.flashPort[S.slug] = e.target.value; }
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+/* ================= comms: ports, flash target, serial terminals ================= */
+const TCOL = ['#39ffa0', '#3af4ff', '#ffbf3c', '#a46bff', '#ff6bd5', '#7dff3a'];
+const shortPort = p => String(p || '').replace('/dev/', '');
+function portLabel(x){
+  const what = x.boards[0] || x.product || x.manufacturer || x.description || x.usb;
+  const on = x.on_board.length ? ' · ' + x.on_board.map(o => `${o.name} ${o.version}`).join(', ') : '';
+  return `${shortPort(x.port)} · ${what}${on}`;
+}
+function renderPorts(){
+  const el = $('#ports'); if (!el) return;
+  el.innerHTML = S.sports.length ? S.sports.map(x => `<div class="portrow">
+      <span class="lamp ${x.monitor ? '' : 'off'}"></span>
+      <span><b>${esc(shortPort(x.port))}</b> ${esc(x.boards[0] || x.product || x.manufacturer || '')}
+        <small>${esc(x.usb)}${x.serial ? ' · ' + esc(x.serial.slice(-8)) : ''}${x.monitor ? ` · <span class="open">${x.monitor.baud} ${esc(x.monitor.state)}</span>` : ''}</small>
+        ${x.on_board.map(o => `<small class="onb">◂ ${esc(o.name)} ${esc(o.version)}</small>`).join('')}</span>
+      <button class="tb" data-a="termOn" data-p="${esc(x.port)}" title="Open a terminal on ${esc(x.port)}">⌁ TERM</button></div>`).join('')
+    : '<div class="port"><span class="lamp off"></span>nothing plugged in</div>';
+}
+/* which port a flash goes to: the human's pick, else the one board that matches the profile */
+function flashCandidates(){
+  const p = proj(); const prof = p && (S.meta.profiles || []).find(x => x.id === p.profile);
+  const ids = new Set(((prof && prof.flash && prof.flash.usb_ids) || []).map(u => u.toLowerCase()));
+  return S.sports.map(x => ({...x, match: ids.has((x.usb || '').toLowerCase())}));
+}
+function chosenFlashPort(){
+  const c = flashCandidates(), pick = S.flashPort[S.slug];
+  if (pick && c.some(x => x.port === pick)) return pick;
+  const on = c.find(x => x.on_board.some(o => o.project === S.slug));
+  if (on) return on.port;
+  const m = c.filter(x => x.match);
+  return m.length === 1 ? m[0].port : (c.length === 1 ? c[0].port : '');
+}
+function flashPortSelect(){
+  const c = flashCandidates();
+  if (!c.length) return '<span class="mono" style="color:var(--dim)">no board on USB</span>';
+  const cur = chosenFlashPort();
+  const opts = (cur ? '' : '<option value="">choose a port…</option>') + c.sort((a, b) => b.match - a.match).map(x =>
+    `<option value="${esc(x.port)}" ${x.port === cur ? 'selected' : ''}>${esc(portLabel(x))}${x.match ? '' : ' (not this board type?)'}</option>`).join('');
+  return `<select class="tsel" data-a="flashPort" title="Which USB port to flash">${opts}</select>`;
+}
+
+const TERMS = [];
+let termSeq = 0;
+function saveTerms(){ try { localStorage.setItem('fv-terms', JSON.stringify(TERMS.map(t => t.cfg()))); } catch(_){} }
+
+class Term {
+  constructor(o){
+    this.n = ++termSeq; this.port = o.port || ''; this.baud = +o.baud || 115200; this.docked = !!o.docked;
+    this.tsOn = !!o.ts; this.hex = !!o.hex; this.eol = o.eol ?? '\n'; this.auto = true; this.on = false;
+    this.since = -1; this.raw = []; this.rawLen = 0; this.lineOpen = false; this.hexCol = 0; this.busy = false;
+    this.hist = []; this.hi = 0; this.state = 'closed';
+    this.dec = new TextDecoder('utf-8', {fatal:false});
+    this.el = document.createElement('div'); this.el.className = 'term';
+    this.el.style.setProperty('--t', TCOL[(this.n - 1) % TCOL.length]);
+    this.el.innerHTML = `
+      <div class="thead"><span class="tname">CH-${this.n}</span><span class="lamp off"></span><span class="grow"></span>
+        <button class="tb" data-k="dock" title="Dock wide / back to the side">⤢</button><button class="tb" data-k="x" title="Remove this terminal">✕</button>
+        <select class="tsel port" data-k="port"></select>
+        <select class="tsel" data-k="baud">${(S.meta.bauds || [115200]).map(b => `<option ${b === this.baud ? 'selected' : ''}>${b}</option>`).join('')}</select>
+        <button class="tb go" data-k="conn">▶ OPEN</button></div>
+      <div class="tscreen"><div class="idle">— CHANNEL IDLE —</div></div>
+      <div class="ttools"><button class="tb" data-k="clear">CLR</button><button class="tb on" data-k="auto" title="Follow new output">FOLLOW</button>
+        <button class="tb ${this.tsOn ? 'on' : ''}" data-k="ts" title="Time on each line">TIME</button><button class="tb ${this.hex ? 'on' : ''}" data-k="hex">HEX</button>
+        <button class="tb" data-k="reset" title="Pulse DTR/RTS to reset the board">RST</button><button class="tb" data-k="save" title="Download what is on screen">SAVE</button><span class="cnt"></span></div>
+      <form class="tin"><input placeholder="send… (↑ history)" disabled>
+        <select class="tsel" data-k="eol" title="Line ending">${[['\n','LF'],['\r','CR'],['\r\n','CRLF'],['','none']].map(([v,l]) => `<option value="${esc(v)}" ${v === this.eol ? 'selected' : ''}>${l}</option>`).join('')}</select></form>`;
+    this.scr = this.el.querySelector('.tscreen'); this.inp = this.el.querySelector('.tin input');
+    this.el.addEventListener('click', e => { const b = e.target.closest('button[data-k]'); if (b){ e.preventDefault(); e.stopPropagation(); this.act(b.dataset.k); } });
+    this.el.addEventListener('change', e => { const k = e.target.dataset.k; if (!k) return; e.stopPropagation(); this.change(k, e.target.value); });
+    this.el.querySelector('.tin').addEventListener('submit', e => { e.preventDefault(); this.send(); });
+    this.inp.addEventListener('keydown', e => {
+      if (e.key === 'ArrowUp' && this.hist.length){ e.preventDefault(); this.hi = Math.max(0, this.hi - 1); this.inp.value = this.hist[this.hi] || ''; }
+      if (e.key === 'ArrowDown' && this.hist.length){ e.preventDefault(); this.hi = Math.min(this.hist.length, this.hi + 1); this.inp.value = this.hist[this.hi] || ''; }
+    });
+    this.scr.addEventListener('scroll', () => { const atEnd = this.scr.scrollHeight - this.scr.scrollTop - this.scr.clientHeight < 24; if (atEnd !== this.auto){ this.auto = atEnd; this.paint(); } });
+    this.mount(); this.fillPorts(); this.paint();
+  }
+  cfg(){ return {port:this.port, baud:this.baud, docked:this.docked, ts:this.tsOn, hex:this.hex, eol:this.eol, on:this.on}; }
+  mount(){ (this.docked ? $('#bay') : $('#terms')).appendChild(this.el); if (this.auto) this.scr.scrollTop = this.scr.scrollHeight; }
+  fillPorts(){
+    const sel = this.el.querySelector('[data-k=port]');
+    const known = S.sports.some(x => x.port === this.port);
+    sel.innerHTML = (this.port ? '' : '<option value="">port…</option>') + S.sports.map(x => `<option value="${esc(x.port)}" ${x.port === this.port ? 'selected' : ''}>${esc(portLabel(x))}</option>`).join('')
+      + (this.port && !known ? `<option value="${esc(this.port)}" selected>${esc(shortPort(this.port))} (not plugged in)</option>` : '');
+    sel.disabled = this.on;
+  }
+  paint(){
+    const lamp = this.el.querySelector('.lamp');
+    lamp.className = 'lamp ' + (this.on ? (this.state === 'open' ? '' : 'warn') : 'off');
+    const c = this.el.querySelector('[data-k=conn]');
+    c.textContent = this.on ? '■ CLOSE' : '▶ OPEN'; c.className = 'tb ' + (this.on ? 'stop' : 'go');
+    this.el.querySelector('[data-k=auto]').classList.toggle('on', this.auto);
+    this.el.querySelector('[data-k=ts]').classList.toggle('on', this.tsOn);
+    this.el.querySelector('[data-k=hex]').classList.toggle('on', this.hex);
+    this.el.querySelector('[data-k=dock]').textContent = this.docked ? '⤡' : '⤢';
+    this.inp.disabled = !(this.on && this.state === 'open');
+    this.el.querySelector('[data-k=port]').disabled = this.on;
+    this.el.querySelector('.cnt').textContent = this.on ? `${this.state.toUpperCase()} · RX ${this.rx || 0} · TX ${this.tx || 0}` : 'CLOSED';
+  }
+  async act(k){
+    try {
+      if (k === 'conn') return this.on ? this.close() : this.open();
+      if (k === 'x'){ if (this.on && !confirm(`Close ${this.port} and remove CH-${this.n}?`)) return; if (this.on) await this.close(); this.el.remove(); TERMS.splice(TERMS.indexOf(this), 1); saveTerms(); return; }
+      if (k === 'dock'){ this.docked = !this.docked; this.mount(); this.paint(); saveTerms(); return; }
+      if (k === 'clear'){ this.raw = []; this.rawLen = 0; this.redraw(); return; }
+      if (k === 'auto'){ this.auto = !this.auto; if (this.auto) this.scr.scrollTop = this.scr.scrollHeight; this.paint(); return; }
+      if (k === 'ts'){ this.tsOn = !this.tsOn; this.redraw(); saveTerms(); return; }
+      if (k === 'hex'){ this.hex = !this.hex; this.redraw(); saveTerms(); return; }
+      if (k === 'reset'){ if (!this.on) return toast('Open the port first'); await api('/serial/reset', {port:this.port}); return; }
+      if (k === 'save'){ const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([this.scr.innerText])); a.download = `${shortPort(this.port) || 'serial'}-${new Date().toISOString().slice(0,19).replace(/[:T]/g,'')}.log`; a.click(); return; }
+    } catch(e){ fail(e); }
+  }
+  async change(k, v){
+    if (k === 'port'){ this.port = v; saveTerms(); }
+    if (k === 'eol'){ this.eol = v; saveTerms(); }
+    if (k === 'baud'){ this.baud = +v; saveTerms(); if (this.on) try { await api('/serial/baud', {port:this.port, baud:this.baud}); } catch(e){ fail(e); } }
+  }
+  async open(){
+    if (!this.port) return toast('Pick a port first', '#ffbf3c');
+    await api('/serial/open', {port:this.port, baud:this.baud});
+    this.on = true; this.since = -1; this.state = 'opening'; this.paint(); saveTerms(); this.poll();
+  }
+  async close(){
+    this.on = false; this.paint(); saveTerms();
+    // another terminal may still be watching the same port
+    if (!TERMS.some(t => t !== this && t.on && t.port === this.port)) await api('/serial/close', {port:this.port}).catch(fail);
+    this.event({kind:'info', text:`closed ${this.port}`}); refreshPorts();
+  }
+  async poll(){
+    if (!this.on || this.busy) return;
+    this.busy = true;
+    try {
+      const d = await api(`/serial/read?port=${encodeURIComponent(this.port)}&since=${this.since}`);
+      if (d.state === 'closed' && this.on){ this.on = false; this.event({kind:'warn', text:'port was closed (from another tab, or idle too long)'}); saveTerms(); }
+      this.state = d.state; this.rx = d.rx; this.tx = d.tx;
+      if (this.since >= 0 && d.dropped) this.event({kind:'warn', text:'… some output was dropped (too fast to keep up)'});
+      const bytes = d.data ? Uint8Array.from(atob(d.data), c => c.charCodeAt(0)) : new Uint8Array();
+      let at = 0;
+      for (const ev of d.events || []){
+        if (ev.at <= (this.evAt || 0)) continue;
+        this.evAt = ev.at;
+        const cut = Math.max(at, Math.min(bytes.length, ev.pos - d.from));
+        if (cut > at) this.feed(bytes.subarray(at, cut));
+        at = cut; this.event(ev);
+      }
+      if (at < bytes.length) this.feed(bytes.subarray(at));
+      if (d.pos != null) this.since = d.pos;
+    } catch(e){ this.state = 'error'; }
+    this.busy = false; this.paint();
+  }
+  /* rendering: keep the raw bytes (bounded) so TIME / HEX can redraw */
+  feed(b, kind){
+    if (!b.length) return;
+    this.raw.push([Date.now(), b, kind]); this.rawLen += b.length;
+    while (this.rawLen > 200000 && this.raw.length > 1){ this.rawLen -= this.raw[0][1].length; this.raw.shift(); }
+    this.draw(Date.now(), b, kind);
+    this.trim(); if (this.auto) this.scr.scrollTop = this.scr.scrollHeight;
+  }
+  event(ev){ this.raw.push([Date.now(), null, ev]); this.drawEvent(ev); if (this.auto) this.scr.scrollTop = this.scr.scrollHeight; }
+  drawEvent(ev){
+    const idle = this.scr.querySelector('.idle'); if (idle) idle.remove();
+    const d = document.createElement('div'); d.className = 'ev ' + (ev.kind || ''); d.textContent = `◇ ${ev.text}`;
+    this.scr.appendChild(d); this.cur = null; this.lineOpen = false; this.hexCol = 0;
+  }
+  newLine(t, cls){
+    const idle = this.scr.querySelector('.idle'); if (idle) idle.remove();
+    const d = document.createElement('div'); if (cls) d.className = cls;
+    if (this.tsOn){ const s = document.createElement('span'); s.className = 'ts'; const dt = new Date(t);
+      s.textContent = dt.toTimeString().slice(0,8) + '.' + String(dt.getMilliseconds()).padStart(3,'0'); d.appendChild(s); }
+    d.appendChild(document.createTextNode('')); this.scr.appendChild(d); this.cur = d; this.lineOpen = true; return d;
+  }
+  draw(t, b, kind){
+    if (this.hex){
+      for (const x of b){
+        if (!this.lineOpen || this.hexCol >= 16){ this.newLine(t, kind === 'tx' ? 'tx' : 'hx'); this.hexCol = 0; }
+        this.cur.lastChild.textContent += x.toString(16).padStart(2, '0').toUpperCase() + (this.hexCol === 7 ? '  ' : ' ');
+        this.hexCol++;
+      }
+      return;
+    }
+    const text = kind === 'tx' ? new TextDecoder().decode(b) : this.dec.decode(b, {stream:true});
+    const parts = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+    parts.forEach((part, i) => {
+      if (i > 0) this.lineOpen = false;
+      if (!part && i === parts.length - 1) return;
+      if (!this.lineOpen || (kind === 'tx') !== this.curTx) { this.newLine(t, kind === 'tx' ? 'tx' : ''); this.curTx = kind === 'tx'; }
+      this.cur.lastChild.textContent += part.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, c => c === '\t' ? c : '·');
+    });
+  }
+  trim(){ while (this.scr.childElementCount > 3000) this.scr.firstElementChild.remove(); }
+  redraw(){
+    this.scr.innerHTML = this.raw.length ? '' : '<div class="idle">— CHANNEL IDLE —</div>'; this.cur = null; this.lineOpen = false; this.hexCol = 0;
+    this.dec = new TextDecoder('utf-8', {fatal:false});
+    for (const [t, b, k] of this.raw){ if (b) this.draw(t, b, k); else this.drawEvent(k); }
+    this.trim(); this.scr.scrollTop = this.scr.scrollHeight; this.paint();
+  }
+  async send(){
+    const v = this.inp.value; if (!this.on) return;
+    const txt = v + this.eol; if (!txt) return;
+    try {
+      await api('/serial/send', {port:this.port, text:txt});
+      if (v){ this.hist.push(v); this.hist = this.hist.slice(-50); }
+      this.hi = this.hist.length; this.inp.value = '';
+      this.lineOpen = false; this.feed(new TextEncoder().encode('› ' + v + '\n'), 'tx');
+    } catch(e){ fail(e); }
+  }
+}
+function addTerm(o){ const t = new Term(o || {}); TERMS.push(t); saveTerms(); if (o && o.on) t.open().catch(() => {}); return t; }
+async function refreshPorts(){
+  try {
+    const sp = await api('/serial/ports'); const sig = JSON.stringify(sp.map(x => [x.port, x.on_board, !!x.monitor]));
+    const changed = sig !== S.portSig; S.sports = sp; S.portSig = sig;
+    renderPorts(); TERMS.forEach(t => t.fillPorts());
+    if (changed && S.V && !(document.activeElement && document.activeElement.dataset && document.activeElement.dataset.a === 'flashPort')){
+      const fp = document.querySelector('[data-a=flashPort]'); const slot = fp ? fp.parentElement : document.querySelector('.flashrow');
+      if (slot){ const old = slot.querySelector('select, span.mono'); if (old) old.remove(); slot.insertAdjacentHTML('beforeend', flashPortSelect()); }
+    }
+  } catch(_){}
+}
+A.termAdd = () => { const free = S.sports.find(x => !TERMS.some(t => t.port === x.port)); addTerm({port: free ? free.port : '', baud: 115200}); };
+A.termOn = d => { const t = TERMS.find(t => t.port === d.p) || addTerm({port:d.p, baud:115200}); if (!t.on) t.open().catch(fail); t.el.scrollIntoView({block:'nearest', behavior:'smooth'}); };
+setInterval(() => { if (document.hidden) return; TERMS.forEach(t => t.poll()); }, 200);
+setInterval(() => { if (!document.hidden) refreshPorts(); }, 3000);
+
+/* ================= sound (tiny) ================= */
+let actx; function beep(f){ try { actx = actx || new AudioContext(); const o = actx.createOscillator(), g = actx.createGain(); o.frequency.value = f; o.type = 'square'; g.gain.value = .03; o.connect(g); g.connect(actx.destination); o.start(); g.gain.exponentialRampToValueAtTime(.0001, actx.currentTime + .25); o.stop(actx.currentTime + .26); } catch(_){} }
+
+/* ================= ambience ================= */
+(function stars(){
+  const c = $('#stars'), x = c.getContext('2d'); let W, H, st = [];
+  const size = () => { W = c.width = innerWidth; H = c.height = innerHeight; st = Array.from({length: Math.min(260, W*H/5000|0)}, () => ({x:Math.random()*W, y:Math.random()*H, z:Math.random()*.9+.1, t:Math.random()*6})); };
+  size(); addEventListener('resize', size);
+  (function loop(){ if (!document.body.classList.contains('calm')){ x.clearRect(0,0,W,H);
+    for (const s of st){ s.y += s.z*.25; s.t += .03; if (s.y > H){ s.y = 0; s.x = Math.random()*W; }
+      x.fillStyle = `rgba(${s.z > .7 ? '58,244,255' : '217,247,255'},${(.35 + .35*Math.sin(s.t))*s.z})`; x.fillRect(s.x, s.y, s.z*2, s.z*2); } }
+    requestAnimationFrame(loop); })();
+})();
+(function ticker(){
+  const G = 'ᚠᚢᚦᚨᚱᚲᚷᚹᚺᚾᛁᛃᛇᛈᛉᛊᛏᛒᛖᛗᛚᛜᛞᛟⴰⴱⴳⴷⴹⴻⴼⵀⵃⵄⵅⵇⵉⵊⵍⵎⵏⵓⵔⵕⵖⵙⵚⵛⵜⵟⵡⵢⵣ⌬⏃⏚⍜⎎⟁';
+  let s = ''; for (let i = 0; i < 160; i++) s += (i % 9 === 4) ? ' · 0x' + (Math.random()*65535|0).toString(16).toUpperCase().padStart(4,'0') + ' · ' : G[Math.random()*G.length|0];
+  $('#ticker').textContent = s + s;
+})();
+function boot(){
+  const lines = ['VAULT CORE ............ ONLINE', 'SEAL INTEGRITY ........ VERIFIED', 'BUILD ARCHIVE ......... MOUNTED', 'FLASH BUS ............. STANDING BY', 'OPERATOR ............ RECOGNISED', '', '> WELCOME BACK.'];
+  let seen = false; try { seen = sessionStorage.getItem('fv-boot'); sessionStorage.setItem('fv-boot', '1'); } catch(_){}
+  const done = () => { const b = $('#boot'); if (!b || b.classList.contains('gone')) return; b.classList.add('gone'); setTimeout(() => b.remove(), 600); };
+  if (seen || matchMedia('(prefers-reduced-motion: reduce)').matches) return done();
+  let i = 0; const pre = $('#bootText');
+  const t = setInterval(() => { pre.textContent += lines[i++] + '\n'; if (i >= lines.length){ clearInterval(t); setTimeout(done, 450); } }, 190);
+  addEventListener('keydown', done, {once:true}); $('#boot').addEventListener('click', done, {once:true});
+}
+
+/* ================= start + live refresh ================= */
+try { if (localStorage.getItem('fv-calm') === '1') A.calm(); } catch(_){}
+boot();
+(async () => {
+  try { S.meta = await api('/meta');
+        if (S.meta.host) { $('#footHost').textContent = 'FIRMWARE VAULT · ' + S.meta.host.toUpperCase(); $('#hostUsb').textContent = S.meta.host + ' usb'; }
+        await refreshPorts(); await loadAll();
+        let saved = []; try { saved = JSON.parse(localStorage.getItem('fv-terms') || '[]'); } catch(_){}
+        saved.forEach(o => addTerm(o)); } catch(e){ fail(e); }
+  setInterval(async () => {
+    if (!$('#modal').hidden || S.jobState === 'run') return;
+    try {
+      const meta = await api('/meta'); const projects = await api('/projects');
+      const P = S.slug ? await api('/projects/' + encodeURIComponent(S.slug)) : null;
+      const sig = JSON.stringify([meta.ports, projects, P && P.versions, P && P.open_issues]);
+      if (sig !== S.lastSig){ const first = !S.lastSig; S.lastSig = sig; S.meta = meta; if (!first){ S.projects = projects;
+        const typing = document.activeElement && ['noteInput','reason'].includes(document.activeElement.id) && document.activeElement.value;
+        if (!typing){ S.P = P; if (S.vid) S.V = await api(`/projects/${encodeURIComponent(S.slug)}/versions/${S.vid}`); render(); } } }
+    } catch(_){}
+  }, 5000);
+})();
+</script>
+</body>
+</html>

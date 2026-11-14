@@ -1,0 +1,5 @@
+# Firmware Vault's Python dependencies (installed into .venv by ./install.sh)
+pyserial==3.5
+PyYAML==6.0.3
+platformio==6.2.0
+esptool==5.6.0
